@@ -57,3 +57,30 @@ spec:
     group: gateway.networking.k8s.io
     kind: Gateway
     name: gke-gateway
+
+
+# add by n.nagao
+
+############################################################
+# Internal Gateway (VPC-internal only)
+############################################################
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: sdv-internal-gateway
+  namespace: gke-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  # Internal L7 Load Balancer
+  gatewayClassName: gke-l7-rilb
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: All
+

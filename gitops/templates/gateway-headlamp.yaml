@@ -27,6 +27,17 @@ spec:
       name: gke-gateway
       namespace: gke-gateway
       sectionName: https
+
+# add by nagao
+
+    # 内部向け（正解）：Internal Gateway の HTTP リスナー
+    - kind: Gateway
+      name: sdv-internal-gateway
+      namespace: gke-gateway     # ✅ 修正点
+      sectionName: http          # ✅ 追加
+##########################
+
+
   hostnames:
     -  {{ .Values.config.domain }}
   rules:
