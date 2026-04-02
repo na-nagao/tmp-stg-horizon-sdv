@@ -40,6 +40,7 @@ spec:
 
   hostnames:
     - {{ printf "mcp.%s" .Values.config.domain | quote }}
+    - mcp.cdc.horizon-sdv-stg
   rules:
     # route `mcp.domain` to nginx port inside registry service
     - matches:
