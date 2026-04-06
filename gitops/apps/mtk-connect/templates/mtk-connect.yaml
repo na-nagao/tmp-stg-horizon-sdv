@@ -33,7 +33,7 @@ data:
         "saml": {
           "issuer": "mtk-connect",
           #"entryPoint": "https://hostname/auth/realms/horizon/protocol/saml"
-          "entryPoint": "https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
+          "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
         },
         "mongo": {
           "db": "mtk-connect",
