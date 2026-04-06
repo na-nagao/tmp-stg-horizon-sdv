@@ -93,8 +93,8 @@ spec:
         configFiles:
           gerrit.config: |-
             [gerrit]
-              #canonicalWebUrl = https://{{ .Values.config.domain }}/gerrit/
-              canonicalWebUrl = http://cdc.horizon-sdv-stg/gerrit/
+              #canonicalWebUrl = https://{{ .Values.config.domain }}/gerrit/ #change by ngao
+              #canonicalWebUrl = http://cdc.horizon-sdv-stg/gerrit/
             [core]
               packedGitLimit = 1g
               packedGitWindowSize = 8k
@@ -109,7 +109,8 @@ spec:
               trustedOpenID=^.*$
             [httpd]
               #listenUrl = proxy-https://*:8080/gerrit/
-              listenUrl = proxy-http:/*:8080/gerrit/
+              canonicalWebUrl = http://cdc.horizon-sdv-stg/gerrit/
+              listenUrl = proxy-http:/*:8080/
               requestLog = true
               maxThreads = 25
             [user]
