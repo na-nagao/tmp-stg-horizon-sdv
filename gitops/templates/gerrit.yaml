@@ -92,7 +92,8 @@ spec:
     helm:
       values: |
         config:
-          domain: {{ .Values.config.domain }}
+          #domain: {{ .Values.config.domain }}
+          domain: cdc.horizon-sdv-stg
         spec:
           source:
             repoURL: {{ .Values.spec.source.repoURL }}

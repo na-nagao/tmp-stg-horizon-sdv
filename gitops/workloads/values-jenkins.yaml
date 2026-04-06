@@ -432,7 +432,8 @@ controller:
                 - key: "GERRIT_CREDENTIALS_ID"
                   value: "jenkins-gerrit-http-password"
                 - key: "HORIZON_DOMAIN"
-                  value: {{ .Values.config.domain }}
+                  #value: {{ .Values.config.domain }} change by nagao
+                  value: cdc.horizon-sdv-stg
                 - key: "HORIZON_GITHUB_URL"
                   value: {{ .Values.config.workloads.android.url }}
                 - key: "HORIZON_GITHUB_BRANCH"

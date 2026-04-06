@@ -97,7 +97,8 @@ spec:
           serviceAccountName: mtk-connect-writer-sa
           containers:
             - name: mtk-connect-api-key-config
-              args: ["--api-domain", "{{ .Values.config.domain }}"]
+              #args: ["--api-domain", "{{ .Values.config.domain }}"] # add by nagao
+              args: ["--api-domain", "cdc.horizon-sdv-stg"]
               env:
               - name: MTK_KEY_UPD_USERNAME
                 valueFrom:

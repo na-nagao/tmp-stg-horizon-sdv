@@ -32,7 +32,8 @@ spec:
         config:
           gitops:
             gerritMcpServer: {{ .Values.config.apps.gerritMcpServer}}
-            domain: {{ .Values.config.domain }}
+            #domain: {{ .Values.config.domain }}
+            domain: cdc.horizon-sdv-stg
         spec:
           source:
             repoURL: {{ .Values.spec.source.repoURL }}

@@ -33,9 +33,12 @@ spec:
           name: mcp-gateway
           namespace: mcp-gateway-registry
         externalUrls:
-          registry: "https://mcp.{{ .Values.config.domain }}"
-          authServer: "https://mcp.{{ .Values.config.domain }}/auth-server"
-          keycloak: "https://{{ .Values.config.domain }}/auth"
+          #registry: "https://mcp.{{ .Values.config.domain }}"
+          registry: "http://mcp.cdc.horizon-sdv-stg"
+          #authServer: "https://mcp.{{ .Values.config.domain }}/auth-server"
+          authServer: "http://mcp.cdc.horizon-sdv-stg/auth-server"
+          #keycloak: "https://{{ .Values.config.domain }}/auth"
+          keycloak: "http://cdc.horizon-sdv-stg"/auth
         spec:
           source:
             repoURL: {{ .Values.spec.source.repoURL }}

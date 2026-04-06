@@ -33,7 +33,7 @@ spec:
         
         domainFilters:
           - "{{ .Values.config.domain }}"
-
+          #- cdc.horizon-sdv-stg # by nagao
         sources:
           - gateway-httproute
         

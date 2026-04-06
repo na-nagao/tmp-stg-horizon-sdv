@@ -39,8 +39,10 @@ spec:
 
         extraArgs:
           provider: "oidc"
-          oidc-issuer-url: "https://{{ .Values.config.domain }}/auth/realms/horizon"
-          redirect-url: "https://{{ .Values.config.domain }}/headlamp/oauth2/callback"
+          #oidc-issuer-url: "https://{{ .Values.config.domain }}/auth/realms/horizon"
+          oidc-issuer-url: "http://horizon-sdv-stg/auth/realms/horizon" # change by nagao
+          #redirect-url: "https://{{ .Values.config.domain }}/headlamp/oauth2/callback"
+          redirect-url: "http://horizon-sdv-stg/headlamp/oauth2/callback" # chage by nagao
           cookie-secure: "true"
           cookie-samesite: "lax"
           scope: "openid profile email groups"
