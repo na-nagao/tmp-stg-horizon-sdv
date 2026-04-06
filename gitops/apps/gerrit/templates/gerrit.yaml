@@ -109,7 +109,7 @@ spec:
               trustedOpenID=^.*$
             [httpd]
               #listenUrl = proxy-https://*:8080/gerrit/
-              listenUrl = proxy-http://*:8080/
+              listenUrl = proxy-http://*:8080/gerrit/
               requestLog = true
               maxThreads = 25
             [user]
