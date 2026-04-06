@@ -557,7 +557,8 @@ controller:
                     - verdictDescription: "Verified"
                       verdictValue: "Verified"
                   gerritAuthKeyFile: "/run/secrets/additional/jenkins-gerrit-ssh-private-key-privateKey"
-                  gerritFrontEndUrl: "https://{{ .Values.config.domain }}/gerrit/"
+                  #gerritFrontEndUrl: "https://{{ .Values.config.domain }}/gerrit/" # change by nagao
+                  gerritFrontEndUrl: "http://cdc.horizon-sdv-stg/gerrit/"
                   gerritHostName: "gerrit-service.gerrit.svc.cluster.local"
                   gerritUserName: "gerrit-admin"
                   useRestApi: false
