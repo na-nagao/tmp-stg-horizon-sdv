@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#  #"entryPoint": "https://hostname/auth/realms/horizon/protocol/saml" line35 delete by nagao
 
 apiVersion: v1
 kind: ConfigMap
@@ -32,7 +33,6 @@ data:
         },
         "saml": {
           "issuer": "mtk-connect",
-          #"entryPoint": "https://hostname/auth/realms/horizon/protocol/saml"
           "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
         },
         "mongo": {
