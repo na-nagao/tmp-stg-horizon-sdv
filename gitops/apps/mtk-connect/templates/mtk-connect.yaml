@@ -200,6 +200,8 @@ spec:
           env:
             - name: authenticator__session__cookie__secure #add by nagao
               value: "false" #add 
+            - name: authenticator__session__cookie__sameSite # add by nagao
+              value: "lax" #add
             - name: authenticator__saml__privateCert
               valueFrom:
                 secretKeyRef:
