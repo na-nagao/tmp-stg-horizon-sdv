@@ -40,7 +40,7 @@ data:
         },
         "saml": {
           "issuer": "mtk-connect",
-          "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
+          "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml",
           "validateInResponseTo": "never"
         },
         "mongo": {
