@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #  #"entryPoint": "https://hostname/auth/realms/horizon/protocol/saml" line35 delete by nagao
-
+# "validateInResponseTo": "never" add
+# line 29~34 add session part 
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -25,6 +26,12 @@ data:
     {
       "authenticator": {
         "port": 8082,
+        "session": {
+          "cookie": {
+            "secure": false,
+            "sameSite": "lax"
+          }
+       },
         "apikey": {
           "enabled": true
         },
@@ -34,6 +41,7 @@ data:
         "saml": {
           "issuer": "mtk-connect",
           "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
+          "validateInResponseTo": "never"
         },
         "mongo": {
           "db": "mtk-connect",
@@ -202,6 +210,8 @@ spec:
               value: "false" #add 
             - name: authenticator__session__cookie__sameSite # add by nagao
               value: "lax" #add
+            - name: authenticator__saml__validateInResponseTo # add by nagao
+              value: "never" # add
             - name: authenticator__saml__privateCert
               valueFrom:
                 secretKeyRef:
