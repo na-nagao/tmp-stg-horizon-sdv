@@ -35,7 +35,6 @@ spec:
           - "start"
           - "--http-port=8080"
           - "--hostname-strict=false"
-          - "--hostname-strict-https=false" # add by nagao
           - "--spi-events-listener-jboss-logging-success-level=info"
           - "--spi-events-listener-jboss-logging-error-level=warn"
 
