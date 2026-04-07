@@ -198,6 +198,8 @@ spec:
         - name: authenticator
           image: {{ .Values.config.gitops.mtkconnect.authenticator }}
           env:
+            - name: authenticator__session__cookie__secure #add by nagao
+              value: "false" #add 
             - name: authenticator__saml__privateCert
               valueFrom:
                 secretKeyRef:
