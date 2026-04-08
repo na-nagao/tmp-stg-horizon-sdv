@@ -77,10 +77,10 @@ spec:
         grafana.ini:
           server:
             #root_url: https://{{ .Values.config.domain }}/grafana
-            root_url: http://cdc.horizon-sdv-stg/grafana
+            root_url: https://cdc.horizon-sdv-stg/grafana
             serve_from_sub_path: true
             #domain: {{ .Values.config.domain }}
-            domain: http://cdc.horizon-sdv-stg
+            domain: cdc.horizon-sdv-stg
           auth:
             disable_login_form: false
           auth.generic_oauth:
@@ -92,11 +92,11 @@ spec:
             client_id: grafana-oauth
             client_secret: SOME_EXAMPLE_client_secret123456
             #auth_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/auth
-            auth_url: http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/auth
+            auth_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/auth
             #token_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/token
-            token_url: http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/token
+            token_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/token
             #api_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/userinfo
-            api_url: http://cdc.horizon-sdv-stg//auth/realms/horizon/protocol/openid-connect/userinfo
+            api_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/userinfo
             allow_assign_grafana_admin: true
             role_attribute_path: contains(groups[*], 'horizon-grafana-administrators') && 'Admin' || contains(groups[*], 'horizon-grafana-viewers') && 'Viewer'
             login_attribute_path: username
