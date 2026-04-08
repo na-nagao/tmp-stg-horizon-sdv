@@ -26,12 +26,6 @@ data:
     {
       "authenticator": {
         "port": 8082,
-        "session": {
-          "cookie": {
-            "secure": false,
-            "sameSite": "lax"
-          }
-       },
         "apikey": {
           "enabled": true
         },
@@ -40,8 +34,7 @@ data:
         },
         "saml": {
           "issuer": "mtk-connect",
-          "entryPoint": "http://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml",
-          "validateInResponseTo": "never"
+          "entryPoint": "https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/saml"
         },
         "mongo": {
           "db": "mtk-connect",
@@ -206,12 +199,6 @@ spec:
         - name: authenticator
           image: {{ .Values.config.gitops.mtkconnect.authenticator }}
           env:
-            - name: authenticator__session__cookie__secure #add by nagao
-              value: "false" #add 
-            - name: authenticator__session__cookie__sameSite # add by nagao
-              value: "lax" #add
-            - name: authenticator__saml__validateInResponseTo # add by nagao
-              value: "never" # add
             - name: authenticator__saml__privateCert
               valueFrom:
                 secretKeyRef:

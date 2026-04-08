@@ -81,7 +81,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }}
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
