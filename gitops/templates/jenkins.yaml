@@ -45,7 +45,7 @@ spec:
                 branch: {{ .Values.config.workloads.android.branch }}
           controller:
             #jenkinsUrl: https://{{ .Values.config.domain }}/jenkins # change by nagao
-            jenkinsUrl: http://cdc.horizon-sdv-stg/jenkins
+            jenkinsUrl: https://cdc.horizon-sdv-stg/jenkins
             jenkinsUriPrefix: /jenkins
             additionalExistingSecrets:
               - name: jenkins-keycloak
