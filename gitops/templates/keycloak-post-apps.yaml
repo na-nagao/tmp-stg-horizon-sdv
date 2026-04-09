@@ -114,7 +114,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }} #change
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -157,7 +157,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }} #nagao
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -190,7 +190,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }} #ngao
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -223,7 +223,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }} # change by nagao
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -266,7 +266,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: DOMAIN
               #value: https://{{ .Values.config.domain }}
-              value: http://cdc.horizon-sdv-stg
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -309,7 +309,7 @@ spec:
               value: http://keycloak-keycloakx-http:8080
             - name: MCP_SUBDOMAIN
               #value: {{ printf "https://mcp.%s" .Values.config.domain | quote }} #nagoia
-              value: http://mcp.cdc.horizon-sdv-stg
+              value: https://mcp.cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
