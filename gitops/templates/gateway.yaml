@@ -92,7 +92,9 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: internal-gateway-cert
+          - kind: Secret
+            name: internal-gateway-cert
+            namespace: gke-gateway
       allowedRoutes:
         kinds:
           - kind: HTTPRoute
