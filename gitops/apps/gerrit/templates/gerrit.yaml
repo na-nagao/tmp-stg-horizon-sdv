@@ -94,7 +94,7 @@ spec:
           gerrit.config: |-
             [gerrit]
               #canonicalWebUrl = https://{{ .Values.config.domain }}/gerrit/ #change by ngao
-              canonicalWebUrl = http://cdc.horizon-sdv-stg/gerrit/
+              canonicalWebUrl = https://cdc.horizon-sdv-stg/gerrit/
             [core]
               packedGitLimit = 1g
               packedGitWindowSize = 8k
@@ -108,8 +108,8 @@ spec:
               gitOAuthProvider = gerrit-oauth-provider:keycloak-oauth
               trustedOpenID=^.*$
             [httpd]
-              #listenUrl = proxy-https://*:8080/gerrit/
-              listenUrl = proxy-http://*:8080/gerrit/
+              #listenUrl = proxy-https://*:8080/gerrit/ #chage by nagao
+              listenUrl = proxy-https://*:8080/gerrit/
               requestLog = true
               maxThreads = 25
             [user]
@@ -119,8 +119,8 @@ spec:
             [container]
               heapLimit = 4g
             [plugin "gerrit-oauth-provider-keycloak-oauth"]
-              #root-url = https://{{ .Values.config.domain }}
-              root-url = http://cdc.horizon-sdv-stg
+              #root-url = https://{{ .Values.config.domain }} #chage by nagao
+              root-url = https://cdc.horizon-sdv-stg
               realm = "horizon"
               client-id = "gerrit"
             [pack]
