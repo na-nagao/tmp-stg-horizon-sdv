@@ -118,6 +118,8 @@ spec:
               anonymousCoward = Unnamed User
             [container]
               heapLimit = 4g
+              javaOptions = -Djavax.net.ssl.trustStore=/var/gerrit/etc/cacerts #add by nagao
+              javaOptions = -Djavax.net.ssl.trustStorePassword=changeit #add by nagao
             [plugin "gerrit-oauth-provider-keycloak-oauth"]
               #root-url = https://{{ .Values.config.domain }} #chage by nagao
               root-url = https://cdc.horizon-sdv-stg
