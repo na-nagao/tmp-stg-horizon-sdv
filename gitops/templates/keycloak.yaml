@@ -35,6 +35,7 @@ spec:
           - "start"
           - "--http-port=8080"
           - "--hostname-strict=false"
+          - "--proxy-headers=xforwarded"   # ← 追加（proxy.mode の代替） 
           - "--spi-events-listener-jboss-logging-success-level=info"
           - "--spi-events-listener-jboss-logging-error-level=warn"
 
@@ -50,6 +51,8 @@ spec:
             value: >-
               -XX:MaxRAMPercentage=50.0
               -Djgroups.dns.query=keycloak-keycloakx-headless
+          - name: KC_HOSTNAME              # ← 追加  
+            value: "cdc.horizon-sdv-stg"
 
         dbchecker:
           enabled: true
