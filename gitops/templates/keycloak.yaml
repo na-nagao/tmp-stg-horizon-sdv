@@ -35,6 +35,7 @@ spec:
           - "start"
           - "--http-port=8080"
           - "--hostname-strict=false"
+          - "--http-relative-path=/auth"          # 追加: /auth パスで動作させる
           - "--proxy-headers=xforwarded"   # ← 追加（proxy.mode の代替） 
           - "--spi-events-listener-jboss-logging-success-level=info"
           - "--spi-events-listener-jboss-logging-error-level=warn"
@@ -68,8 +69,8 @@ spec:
         service:
           httpPort: 8080
 
-        proxy:
-          mode: xforwarded
+       # proxy:
+         # mode: xforwarded
 
   destination:
     server: https://kubernetes.default.svc
