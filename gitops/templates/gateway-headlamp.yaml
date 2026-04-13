@@ -28,14 +28,14 @@ spec:
       namespace: gke-gateway
       sectionName: https
 
-# add by nagao
+    # add by nagao
 
     # 内部向け（正解）：Internal Gateway の HTTP リスナー
     - kind: Gateway
       name: sdv-internal-gateway
       namespace: gke-gateway     # ✅ 修正点
       sectionName: https          # ✅ 追加
-##########################
+      ##########################
 
 
   hostnames:

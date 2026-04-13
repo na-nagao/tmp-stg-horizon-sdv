@@ -183,8 +183,35 @@ spec:
   template:
     spec:
       serviceAccountName: keycloak-writer-sa
+      volumes:
+        - name: internal-ca          # ← 追加  
+          secret:
+            secretName: internal-ca-cert
       containers:
         - name: keycloak-post-argocd-container
+          command:                   # ← 追加（CMD を上書き）  
+            - /bin/bash
+            - -c
+            - |
+              /home/node/configure.sh
+
+              # rootCA を argocd-cm に追加  
+              CA_CERT=$(cat /tmp/ca/ca.crt | sed 's/^/  /')
+              OIDC_CONFIG="name: Keycloak
+              issuer: ${DOMAIN}/auth/realms/horizon
+              clientID: argocd
+              clientSecret: \$oidc.keycloak.clientSecret
+              requestedScopes: [\"openid\", \"profile\", \"email\", \"groups\"]
+              rootCA: |
+              ${CA_CERT}"
+
+              kubectl -n argocd patch configmap argocd-cm \
+                --patch "{\"data\":{\"oidc.config\":$(echo "$OIDC_CONFIG" | jq -Rs .)}}"
+
+              echo "rootCA added to argocd-cm"
+          volumeMounts:              # ← 追加  
+            - name: internal-ca
+              mountPath: /tmp/ca
           env:
             - name: PLATFORM_URL
               value: http://keycloak-keycloakx-http:8080
