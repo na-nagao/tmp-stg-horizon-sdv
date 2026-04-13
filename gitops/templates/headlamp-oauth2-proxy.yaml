@@ -44,6 +44,7 @@ spec:
           redirect-url: "https://cdc.horizon-sdv-stg/headlamp/oauth2/callback" # chage by nagao
           cookie-domain: "cdc.horizon-sdv-stg"  #add by nagao
           standard-logging: "true"
+          skip-oidc-email-verification: "true"   # add by nagao
           ssl-insecure-skip-verify: "true"     #add by nagao
           cookie-secure: "true"
           cookie-samesite: "lax"
