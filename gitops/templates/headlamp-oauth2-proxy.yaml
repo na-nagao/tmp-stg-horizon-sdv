@@ -36,14 +36,13 @@ spec:
       values: |
         config:
           clientID: "oauth2-headlamp"
-
         extraArgs:
           provider: "oidc"
           #oidc-issuer-url: "https://{{ .Values.config.domain }}/auth/realms/horizon"
           oidc-issuer-url: "https://cdc.horizon-sdv-stg/auth/realms/horizon" # change by nagao
           #redirect-url: "https://{{ .Values.config.domain }}/headlamp/oauth2/callback"
           redirect-url: "https://cdc.horizon-sdv-stg/headlamp/oauth2/callback" # chage by nagao
-          log-level: "debug"    #add by nagao
+          standard-logging: "true"
           ssl-insecure-skip-verify: "true"     #add by nagao
           cookie-secure: "true"
           cookie-samesite: "lax"
