@@ -43,7 +43,8 @@ spec:
           oidc-issuer-url: "https://cdc.horizon-sdv-stg/auth/realms/horizon" # change by nagao
           #redirect-url: "https://{{ .Values.config.domain }}/headlamp/oauth2/callback"
           redirect-url: "https://cdc.horizon-sdv-stg/headlamp/oauth2/callback" # chage by nagao
-          ssl-insecure-skip-verify: "true"
+          log-level: "debug"    #add by nagao
+          ssl-insecure-skip-verify: "true"     #add by nagao
           cookie-secure: "true"
           cookie-samesite: "lax"
           scope: "openid profile email groups"
