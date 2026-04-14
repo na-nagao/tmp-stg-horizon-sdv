@@ -55,8 +55,8 @@ spec:
     kind: SecretStore
     name: monitoring-secret-store
   target:
-    name: internal-ca-secret
-    creationPolicy: Owner
+    name: internal
+    creationPolicy: Merge
   data:
     - secretKey: ca.crt
       remoteRef:
