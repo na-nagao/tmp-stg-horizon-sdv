@@ -47,17 +47,17 @@ spec:
                 editable: true
 
         dashboardProviders:
-            dashboardproviders.yaml:
-              apiVersion: 1
-              providers:
-                - name: 'default'
-                  orgId: 1
-                  folder: ''
-                  type: file
-                  disableDeletion: false
-                  editable: true
-                  options:
-                    path: /var/lib/grafana/dashboards/default
+          dashboardproviders.yaml:
+            apiVersion: 1
+            providers:
+              - name: 'default'
+                orgId: 1
+                folder: ''
+                type: file
+                disableDeletion: false
+                editable: true
+                options:
+                  path: /var/lib/grafana/dashboards/default
 
         dashboards:
           default:
@@ -106,7 +106,7 @@ spec:
             email_attribute_path: email
             role_attribute_strict: true
         assertNoLeakedSecrets: false
-        extraVolumes:      # readOnly: trueまで追記
+        extraVolumes:      # add to readOnly: true
           - name: internal-ca
             secret:
               secretName: internal
