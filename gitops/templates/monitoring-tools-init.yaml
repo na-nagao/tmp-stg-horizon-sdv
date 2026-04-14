@@ -112,5 +112,7 @@ spec:
         workloadIdentity:
           clusterLocation: {{ .Values.config.region }}
           clusterName: sdv-cluster
+          clusterProjectID: {{ .Values.config.projectID }}
           serviceAccountRef:
             name: monitoring-sa
+            namespace: monitoring
