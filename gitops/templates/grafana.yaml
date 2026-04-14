@@ -111,7 +111,7 @@ spec:
             sercret:
               sercret: internal
         extraVolumeMounts:
-          - name: internal
+          - name: internal-ca
             mountPath: /etc/ssl/certs/internal.crt
             subPath: ca.crt
             readOnly: true

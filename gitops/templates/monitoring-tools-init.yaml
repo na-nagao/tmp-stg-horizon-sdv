@@ -96,3 +96,21 @@ subjects:
 - kind: ServiceAccount
   name: kube-state-metrics
   namespace: gmp-public
+---
+apiVersion: external-secrets.io/v1beta1 #add by nagao
+kind: SecretStore
+metadata:
+  name: monitoring-secret-store
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  provider:
+    gcpsm:
+      projectID: {{ .Values.config.projectID }}
+      auth:
+        workloadIdentity:
+          clusterLocation: {{ .Values.config.region }}
+          clusterName: sdv-cluster
+          serviceAccountRef:
+            name: monitoring-sa
