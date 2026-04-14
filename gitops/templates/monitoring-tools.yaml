@@ -56,7 +56,7 @@ spec:
     name: monitoring-secret-store
   target:
     name: internal
-    creationPolicy: Merge
+    creationPolicy: Owner
   data:
     - secretKey: ca.crt
       remoteRef:

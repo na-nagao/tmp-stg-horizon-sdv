@@ -108,8 +108,8 @@ spec:
         assertNoLeakedSecrets: false
         extraVolumes:      # readOnly: trueまで追記
           - name: internal-ca
-            sercret:
-              sercret: internal
+            secret:
+              secretName: internal
         extraVolumeMounts:
           - name: internal-ca
             mountPath: /etc/ssl/certs/internal.crt
