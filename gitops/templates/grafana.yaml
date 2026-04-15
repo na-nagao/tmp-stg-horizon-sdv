@@ -98,7 +98,7 @@ spec:
             #api_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/userinfo
             api_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/userinfo
             tls_skip_verify_insecure: false #add
-            tls_client_ca_file: /etc/ssl/certs/internal.crt #add
+            tls_client_ca: /etc/ssl/certs/internal.crt #add
             allow_assign_grafana_admin: true
             role_attribute_path: contains(groups[*], 'horizon-grafana-administrators') && 'Admin' || contains(groups[*], 'horizon-grafana-viewers') && 'Viewer'
             login_attribute_path: username
@@ -106,15 +106,12 @@ spec:
             email_attribute_path: email
             role_attribute_strict: true
         assertNoLeakedSecrets: false
-        extraVolumes:      # add to readOnly: true
+        extraSecretMounts:       # add by nagao
           - name: internal-ca
-            secret:
-              secretName: internal
-        extraVolumeMounts:
-          - name: internal-ca
-            mountPath: /etc/ssl/certs/internal.crt
-            subPath: ca.crt
+            secretName: internal
+            mountPath: /etc/ssl/certs/internal-ca
             readOnly: true
+            defaultMode: 0444
 
   destination:
     server: https://kubernetes.default.svc
