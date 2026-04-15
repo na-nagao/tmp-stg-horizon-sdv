@@ -90,7 +90,7 @@ spec:
             allow_sign_up: true
             scopes: openid profile email
             client_id: grafana-oauth
-            client_secret: SOME_EXAMPLE_client_secret123456
+            #client_secret: SOME_EXAMPLE_client_secret123456
             #auth_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/auth
             auth_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/auth
             #token_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/token
@@ -112,7 +112,12 @@ spec:
             mountPath: /etc/ssl/certs/internal-ca
             readOnly: true
             defaultMode: 0444
-
+        env:
+          GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: grafana-keycloak-secret
+                key: client_secret
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -123,14 +128,6 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
-
-  ignoreDifferences:  #add by nagao
-    - group: ""
-      kind: Secret
-      name: grafana-oauth
-      namespace: monitoring
-      jsonPointers:
-        - /data/client_secret
 
   #ignoreDifferences: # delete by nagao
     #- jqPathExpressions:
