@@ -116,3 +116,22 @@ spec:
           serviceAccountRef:
             name: monitoring-sa
             namespace: monitoring
+
+---
+apiVersion: external-secrets.io/v1beta1 # add by nagao
+kind: ExternalSecret
+metadata:
+  name: internal-ca-cert
+  namespace: monitoring
+spec:
+  refreshInterval: 10s
+  secretStoreRef:
+    kind: SecretStore
+    name: monitoring-secret-store
+  target:
+    name: internal
+    creationPolicy: Owner
+  data:
+    - secretKey: ca.crt
+      remoteRef:
+        key: internal-ca-cert
