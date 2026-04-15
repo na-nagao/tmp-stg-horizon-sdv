@@ -112,12 +112,11 @@ spec:
             mountPath: /etc/ssl/certs/internal-ca
             readOnly: true
             defaultMode: 0444
-        env:
+        envValueFrom:
           GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
-            valueFrom:
-              secretKeyRef:
-                name: grafana-keycloak-secret
-                key: client_secret
+            secretKeyRef:
+              name: grafana-keycloak-secret
+              key: client_secret
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
