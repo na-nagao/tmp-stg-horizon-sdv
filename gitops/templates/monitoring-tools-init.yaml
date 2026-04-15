@@ -123,8 +123,8 @@ kind: ExternalSecret
 metadata:
   name: internal-ca-cert
   namespace: monitoring
-   annotations:
-     argocd.argoproj.io/sync-wave: "1"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   refreshInterval: 10s
   secretStoreRef:
