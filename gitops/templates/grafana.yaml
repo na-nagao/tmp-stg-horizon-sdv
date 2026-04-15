@@ -98,7 +98,7 @@ spec:
             #api_url: https://{{ .Values.config.domain }}/auth/realms/horizon/protocol/openid-connect/userinfo
             api_url: https://cdc.horizon-sdv-stg/auth/realms/horizon/protocol/openid-connect/userinfo
             tls_skip_verify_insecure: false #add
-            tls_client_ca: /etc/ssl/certs/internal.crt #add
+            tls_client_ca: /etc/ssl/certs/internal-ca/ca.crt #add
             allow_assign_grafana_admin: true
             role_attribute_path: contains(groups[*], 'horizon-grafana-administrators') && 'Admin' || contains(groups[*], 'horizon-grafana-viewers') && 'Viewer'
             login_attribute_path: username
