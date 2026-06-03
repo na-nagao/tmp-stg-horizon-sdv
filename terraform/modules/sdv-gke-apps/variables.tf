@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,53 @@
 # Description
 # Configuration file containing variables for the "sdv-gke-apps" module.
 
-variable "github_auth_method" {
-  description = "Authentication method for Argo CD: 'app' or 'pat'."
+variable "sub_environments" {
+  type        = list(string)
+  description = "List of sub-environments to be deployed."
+}
+
+variable "sub_env_branches" {
+  description = "Map of sub-environment name to Git branch for ArgoCD sync"
+  type        = map(string)
+  default     = {}
+}
+
+variable "scm_type" {
+  description = "SCM type: 'github' or 'git'"
   type        = string
+}
+
+variable "scm_auth_method" {
+  description = "SCM auth method: 'app' or 'userpass'"
+  type        = string
+}
+
+variable "scm_repo_url" {
+  description = "Full SCM repository URL"
+  type        = string
+}
+
+variable "scm_repo_branch" {
+  description = "SCM repository branch"
+  type        = string
+}
+
+variable "scm_repo_owner" {
+  description = "SCM repository owner (for GitHub only)"
+  type        = string
+  default     = ""
+}
+
+variable "scm_repo_name" {
+  description = "SCM repository name (for GitHub only)"
+  type        = string
+  default     = ""
+}
+
+variable "scm_username" {
+  description = "SCM username"
+  type        = string
+  default     = "git"
 }
 
 variable "es_namespace" {
@@ -65,26 +109,6 @@ variable "argocd_application_name" {
   default     = "horizon-sdv"
 }
 
-variable "github_repo_url" {
-  description = "The URL of the GitHub repository."
-  type        = string
-}
-
-variable "github_repo_branch" {
-  description = "The target branch for Argo CD."
-  type        = string
-}
-
-variable "github_repo_owner" {
-  description = "Define the GitHub repository name"
-  type        = string
-}
-
-variable "github_repo_name" {
-  description = "Define the GitHub repository name"
-  type        = string
-}
-
 variable "domain_name" {
   description = "The base domain name."
   type        = string
@@ -116,4 +140,15 @@ variable "images" {
     directory = string
     version   = string
   }))
+}
+variable "enable_network_policies" {
+  description = "Enable network policies for all workloads. When disabled, all network policies will be removed. Default is enabled."
+  type        = bool
+  default     = true
+}
+
+variable "use_static_dns_a_records" {
+  description = "When true, no Cloud DNS zone and no external-dns; use static A records in parent zone instead."
+  type        = bool
+  default     = false
 }

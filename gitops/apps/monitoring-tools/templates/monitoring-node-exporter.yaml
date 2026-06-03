@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .Values.config.isSubEnvironment }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -78,3 +79,4 @@ spec:
   endpoints:
   - port: metrics
     interval: 30s
+{{- end }}

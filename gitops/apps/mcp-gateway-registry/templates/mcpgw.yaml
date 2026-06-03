@@ -24,11 +24,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}-mcpgw-server
+      app.kubernetes.io/name: {{ .Values.app.name }}-mcpgw-server
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}-mcpgw-server
+        app.kubernetes.io/name: {{ .Values.app.name }}-mcpgw-server
     spec:
       containers:
         - name: mcpgw-server
@@ -75,7 +75,7 @@ metadata:
   namespace: {{ .Values.app.namespace }}
 spec:
   selector:
-    app: {{ .Values.app.name }}-mcpgw-server
+    app.kubernetes.io/name: {{ .Values.app.name }}-mcpgw-server
   ports:
     - name: http
       port: {{ .Values.mcpgwServer.service.ports.api }}

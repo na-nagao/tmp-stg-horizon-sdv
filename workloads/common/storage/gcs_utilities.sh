@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2025 Accenture, All Rights Reserved.
+# Copyright (c) 2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,50 @@ FILE=${FILE:-}
 RESULT=1
 LIST_METADATA_WITH_OBJECT="false"
 
+# Outputs the data for a given object
+# Returns output on stdout
+# Parameters:   <object_path> <required_data>
+#               <required_data> can be "metadata", "storage_class"
+# Input:        object_get_data "gs://bucketname/foldername/objectname" "metadata"
+# Output:       for metadata: keyA=1;keyB=2;keyC=3
+#               for storage_class: STANDARD
+#               for other data: contents of the object
+function object_get_data(){
+    local object_path="$1"
+    local required_data="$2"
+    local object_data
 
+    if ! object_data=$(gcloud storage objects list "$object_path" --format=json  | jq '.[0]' 2>&1); then
+        echo "GCS Error - Failed to get object data for $object_data"
+        echo "GCLOUD STORAGE ERROR: $object_data"
+        return 1
+    fi
+
+    # metadata is stored in the custom_fields field
+    if [[ "$required_data" == "metadata" ]]; then
+        required_data="custom_fields"
+    fi
+
+    # filter the data to the required data
+    local output_data
+    if [[ "$required_data" != "" ]]; then
+        output_data=$(echo "$object_data" | jq -r ".$required_data")
+    else
+        output_data="$object_data"
+    fi
+    if [[ "$output_data" == "null" ]]; then
+        output_data=""
+    fi
+
+    # convert metadata output to key=value format
+    if [[ "$required_data" == "metadata" || "$required_data" == "custom_fields" ]]; then
+        if [[ "$output_data" != "" ]]; then
+            output_data=$(echo "$output_data" | jq -r 'to_entries | map("\(.key)=\(.value)") | join(";")')
+        fi
+    fi
+
+    echo "$output_data"
+}
 
 # Creates the metadata string used for adding / updating gcs object info
 # Returns output on stdout (empty string if input is invalid/empty)
@@ -67,60 +110,28 @@ function get_metadata_string_with_exclusions(){
     local ob_path="$1"
     shift
     local keys_to_remove_str="$1"
-    local initial_metadata_string=""
-    local final_metadata_string=""
-    local keys_to_remove
-    IFS=' ' read -ra keys_to_remove <<< "$keys_to_remove_str"
+    local exclude_json
 
-    if ! raw_metadata=$(gcloud storage objects describe "$ob_path" --format="text(custom_fields)"); then
-        echo "GCS Error - Failed to get object metadata for $ob_path"
-        echo "$raw_metadata"
+    local object_data
+    if ! object_data=$(object_get_data "$ob_path" "metadata"); then
         return 1
     fi
-    if [[ $raw_metadata == ": None" ]]; then
-        echo ""
-        return
+
+    # Build JSON array of keys to exclude for jq (e.g. ["keyA","keyB"])
+    if [[ -z "${keys_to_remove_str// }" ]]; then
+        exclude_json="[]"
+    else
+        exclude_json="[\"${keys_to_remove_str// /\",\"}\"]"
     fi
-
-    cleaned_metadata=$(echo "$raw_metadata" | tr -d ' ')           # remove all spaces
-    cleaned_metadata=$(echo "$cleaned_metadata" | tr ':' '=')      # Replace ': '' with '=''
-
-    # example line: custom_fields.key=value
-    local line
-    while read -r line; do
-        line="${line#custom_fields.}"       # remove the custom_fields. prefix
-
-        key=$(echo "${line%%=*}" | xargs)   # remove everything from = to end of string (i.e. remove the :value bit)
-        value=$(echo "${line#*=}" | xargs)  # remove everything from the start of the string to the :
-
-        skip_key=false
-        local remove_key
-        for remove_key in "${keys_to_remove[@]}"; do
-            if [[ "$key" == "$remove_key" ]]; then
-                skip_key=true
-                break
-            fi
-        done
-
-        initial_metadata_string+="${key}=${value},"
-        if ! $skip_key; then
-            final_metadata_string+="${key}=${value},"
-        fi
-
-    done <<< "$cleaned_metadata"
-
-    while read -r line; do
-        line="${line#custom_fields.}"       # remove the custom_fields. prefix
-
-        key=$(echo "${line%%=*}" | xargs)   # remove everything from = to end of string (i.e. remove the :value bit)
-        value=$(echo "${line#*=}" | xargs)  # remove everything from the start of the string to the :
-
-    done <<< "$cleaned_metadata"
-
-    initial_metadata_string="${initial_metadata_string%,}"  # Remove trailing comma
-    final_metadata_string="${final_metadata_string%,}"  # Remove trailing comma
-
-    echo "$final_metadata_string"
+    # Convert "keyA=1;keyB=2;keyC=3" to JSON object, then filter and output key=value,key=value
+    echo "$object_data" | jq -R '
+        split(";") | map(select(length > 0) | split("=") | {key: .[0], value: (.[1]//"")}) | from_entries
+    ' | jq -r --argjson exclude "$exclude_json" '
+        to_entries
+        | map(select(.key as $k | ($exclude | index($k)) == null))
+        | map("\(.key)=\(.value)")
+        | join(",")
+    '
 }
 
 # Outputs all objects in a bucket path which
@@ -134,28 +145,22 @@ function get_metadata_string_with_exclusions(){
 #               gs://bucketname/foldername/subfolder/object3name
 function list_objects_custom_metadata_status(){
     local bucket_path="$1"
-    local expected_custom_metadata_is_present="$2"
-    local actual_custom_metadata_is_present
+    local expected_metadata_present="$2"
+    local metadata_present
 
     # create object list
     local object_list
     object_list=$(get_object_list "$bucket_path")
 
     while IFS= read -r object_path; do
-        if ! metadata=$(gcloud storage objects describe "$object_path" --format=json 2>/dev/null) ; then
-            echo "GCS Error - Failed to get object metadata for $object_path"
-            echo "$metadata"
-            return 1
+        metadata=$(object_get_data "$object_path" "metadata")
+
+        metadata_present=false
+        if [[ "$metadata" != "" ]]; then
+            metadata_present=true
         fi
 
-        custom_metadata=$(echo "$metadata" | jq '.custom_fields')
-
-        actual_custom_metadata_is_present=false
-        if [[ "$custom_metadata" != "null" ]]; then
-            actual_custom_metadata_is_present=true
-        fi
-
-        if [[ "$expected_custom_metadata_is_present" == "$actual_custom_metadata_is_present" ]]; then
+        if [[ "$expected_metadata_present" == "$metadata_present" ]]; then
             echo "$object_path"
         fi
 
@@ -177,21 +182,57 @@ function objectlist_list_metadata(){
 
 # Outputs a list of objects for path input
 # Returns output on stdout
-# Parameters:   <path to object or folder>
+# Parameters:   <path to object or folder (can contain any number of wildcard characters)>
 # Input:        get_object_list "gs://bucketname/foldername/objectname"
 # Output:       "gs://bucketname/foldername/objectname"
 # Input:        get_object_list "gs://bucketname/foldername/"
 # Output:       list of objects in the folder
+# Input:        get_object_list "gs://bucketname/foldername/*x86*cf*.zip"
+# Output:       list of x86 cf zip files in the folder
 function get_object_list(){
     local url_path="$1"
 
-    # test if input is a folder or an object
-    if [[ "$url_path" == */ || "$url_path" == */\* ]]; then
-        url_path="${url_path%%\**}"   # remove all trailing *
-        gcloud storage ls "$url_path**"
-    else
-        echo "$url_path"
+    # No wildcards
+    if [[ "$url_path" != *"*"* && "$url_path" != *"?"* ]]; then
+        if [[ "$url_path" == */ ]]; then
+            gcloud storage ls "$url_path**"
+        else
+            echo "$url_path"
+        fi
+        return
     fi
+
+    # Require at least one slash so we have a valid prefix (e.g. gs://bucket/path/)
+    if [[ "$url_path" != */* ]]; then
+        echo "get_object_list: path with wildcard must contain a slash (e.g. gs://bucket/prefix*)" >&2
+        return 1
+    fi
+
+    # Prefix: path up to (but not including) first * or ?
+    [[ "$url_path" =~ ^([^\*\?]*) ]]
+    local before_wildcard="${BASH_REMATCH[1]}"
+
+    # Normalize to a listable prefix (ends with /)
+    prefix="${before_wildcard%/*}/"
+
+    # Remainder: url_path after prefix
+    remainder="${url_path#"$prefix"}"
+
+    # Regex from remainder
+    remainder_regex=$(printf '%s' "$remainder" | sed -e 's/\\/\\\\/g' -e 's/\./\\./g' -e 's/\*/.''*/g' -e 's/\?/./g')
+    if [[ "$url_path" == */ ]]; then
+        pattern="^${remainder_regex}"      # suffix starts with pattern
+    else
+        pattern="^${remainder_regex}$"     # suffix equals pattern
+    fi
+
+    # List all under prefix, then filter output to only include objects that match the pattern
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        suffix="${line#"$prefix"}"    # strip prefix
+        [[ "$suffix" =~ $pattern ]] && echo "$line"    # match suffix
+    done < <(gcloud storage ls "$prefix**")
+
 }
 
 # Uploads a file or multiple files to GCS bucket and optionally includes metadata
@@ -255,9 +296,9 @@ function objectlist_delete_all(){
 
 # Outputs the storage class of
 # - an object
-# - all objects in the specified parent path (specified with a trailing / or /*)
+# - all objects matching the specified path (can contain any number of wildcard characters)
 # Returns output on stdout
-# Parameters:   <object_or_parent_path>
+# Parameters:   <object_or_parent_path>  can contain any number of wildcard characters
 # Input:        list_storage_class gs://bucketname/foldername/objectname
 # Output:       gs://bucketname/foldername/objectname STANDARD
 function list_storage_class(){
@@ -270,19 +311,14 @@ function list_storage_class(){
     # perform metadata query
     local object_path
     while IFS= read -r object_path; do
-        if ! metadata=$(gcloud storage objects describe "$object_path" --format=json) ; then
-            echo "GCS Error - Failed to get object metadata for $object_path."
-            echo "$metadata"
-            return 1
-        fi
-        storage_class=$(echo "$metadata" | jq -r '.storage_class')
+        storage_class=$(object_get_data "$object_path" "storage_class")
         echo "$object_path $storage_class"
     done <<< "$object_list"
 }
 
 # Adds or Updates any number of custom metadata key/value pairs to either
 # - an object
-# - all objects in the specified parent path (specified with a trailing / or /*)
+# - all objects matching the specified path (can contain any number of wildcard characters)
 # Parameters:   <object_or_parent_path> <key1>=<value1> <key2>=<value2> ....
 # Input:        add_metadata "gs://bucketname/foldername/objectname" "key1=1 key2=2"
 function add_metadata(){
@@ -312,7 +348,7 @@ function add_metadata(){
 
 # Outputs all custom metadata associated with either
 # - an object
-# - all objects in the specified parent path (specified with a trailing / or /*)
+# - all objects matching the provided path (can contain any number of wildcard characters)
 # Returns output on stdout
 # Parameters:   <object_or_parent_path>
 # Input:        list_metadata gs://bucketname/foldername/objectname
@@ -327,18 +363,14 @@ function list_metadata(){
     # perform metadata query
     local object_path
     while IFS= read -r object_path; do
-        if ! metadata=$(gcloud storage objects describe "$object_path" --format="value(custom_fields)") ; then
-            echo "GCS Error - Failed to get object metadata for $object_path."
-            echo "$metadata"
-            return 1
-        fi
+        metadata=$(object_get_data "$object_path" "metadata")
         echo "$object_path $metadata"
     done <<< "$object_list"
 }
 
 # Removes all custom metadata from either
 # - an object
-# - all objects in the specified parent path (specified with a trailing / or /*)
+# - all objects matching the specified path (can contain any number of wildcard characters)
 # Parameters:   <object_or_parent_path>
 # Input:        remove_all_metadata gs://bucketname/foldername/objectname
 function remove_all_metadata(){
@@ -402,7 +434,7 @@ function remove_metadata(){
 # Outputs all objects in a bucket path which have custom metadata
 # set which matches the provided key(s) and value (if provided)
 # Returns output on stdout
-# Parameters:   <bucket_path>       path must end in / or /*
+# Parameters:   <bucket_path>       can contain any number of wildcard characters
 #               <key_or_key=value> <key_or_key=value> <key_or_key=value>
 # Input:        list_objects_filtered_metadata "gs://bucketname/foldername/*" "key1=1 key2"
 # Output:       gs://bucketname/foldername/object1name
@@ -420,11 +452,14 @@ function list_objects_filtered_metadata(){
     object_list=$(get_object_list "$bucket_path")
 
     while IFS= read -r object_path; do
-        if ! metadata=$(gcloud storage objects describe "$object_path" --format=json 2>/dev/null) ; then
-            echo "GCS Error - Failed to get object metadata for $object_path"
-            echo "$metadata"
-            return 1
-        fi
+        metadata=$(object_get_data "$object_path" "metadata")  # example format: "keyA=1;keyB=2;keyC=3"
+
+        # convert metadata string to JSON object
+        metadata=$(echo "$metadata" | jq -R '
+            split(";")
+            | map(select(length > 0) | split("=") | {key: .[0], value: (.[1]//"")})
+            | from_entries
+        ')
 
         object_match="true"
         key_string=""
@@ -447,7 +482,7 @@ function list_objects_filtered_metadata(){
             fi
 
             # extract actual value assigned to key from metadata
-            actual_value=$(echo "$metadata" | jq -r ".custom_fields[\"$expected_key\"]")
+            actual_value=$(echo "$metadata" | jq -r ".$expected_key")
 
             # continue if metadata doesn't contains the key in question (i.e. if it has no value for the key)
             if [[ -z "$actual_value" || "$actual_value" == "null" ]]; then

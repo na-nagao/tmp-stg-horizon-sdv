@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   name: keycloak-route
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   labels:
     gateway: gke-gateway
   annotations:
@@ -25,7 +25,7 @@ spec:
   parentRefs:
     - kind: Gateway
       name: gke-gateway
-      namespace: gke-gateway
+      namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
 
 ########## add by n.nagao
@@ -56,14 +56,14 @@ spec:
               type: ReplacePrefixMatch
               replacePrefixMatch: /auth
       backendRefs:
-        - name: keycloak-keycloakx-http
+        - name: {{ .Values.config.namespacePrefix }}keycloak-keycloakx-http
           port: 8080
 ---
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: keycloak-healthcheck
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -82,4 +82,30 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: keycloak-keycloakx-http
+    name: {{ .Values.config.namespacePrefix }}keycloak-keycloakx-http
+---
+# Allow Keycloak ingress from Gateway
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-keycloak-ingress-from-gateway
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8080   # HTTP UI
+    - protocol: TCP
+      port: 8443   # HTTPS UI
+    - protocol: TCP
+      port: 9000  # Health check port
+
+{{- end }}

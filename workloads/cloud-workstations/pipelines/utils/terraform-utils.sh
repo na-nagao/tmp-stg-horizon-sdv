@@ -549,25 +549,36 @@ get_workstation_url() {
   echo "$workstation_url"
 }
 
-validate_workstation_state() {
+assert_workstation_state() {
     local target_workstation="$1"
+    local workstation_config="$2"
+    local workstation_cluster="$3"
+    local workstation_region="$4"
+    local expected_state="${5:-STATE_STOPPED}"
 
-    # Extract state directly from Terraform state
-    state=$(terraform show -json | jq -r --arg ws "$target_workstation" '
-    .values.root_module.resources[]
-    | select(.type == "google_workstations_workstation" and .mode == "managed" and .index == $ws)
-    | .values.state
-    ')
+    [[ -z "$target_workstation" ]] && log_error "Workstation name must be provided for state validation."
+    [[ -z "$workstation_config" ]] && log_error "Workstation config must be provided for state validation."
+    [[ -z "$workstation_cluster" ]] && log_error "Workstation cluster must be provided for state validation."
+    [[ -z "$workstation_region" ]] && log_error "Workstation region must be provided for state validation."
+
+    local state
+    state=$(get_current_workstation_state "$target_workstation" "$workstation_config" "$workstation_cluster" "$workstation_region")
 
     if [[ -z "$state" || "$state" == "null" ]]; then
-        log_error "Workstation $target_workstation not found in Terraform state."
+        log_error "Workstation '${target_workstation}' state could not be determined from GCP."
     fi
 
-    if [[ "$state" != "STATE_STOPPED" ]]; then
-        log_error "Workstation $target_workstation is in state $state; expected STATE_STOPPED"
+    case "$state" in
+        STATE_STARTING|STATE_STOPPING|STATE_REPAIRING|STATE_RECONCILING)
+            log_error "Workstation '${target_workstation}' is currently '${state}'. Retry this operation after the workstation reaches a stable state."
+            ;;
+    esac
+
+    if [[ "$state" != "$expected_state" ]]; then
+        log_error "Workstation '${target_workstation}' is in state '${state}'; expected '${expected_state}'."
     fi
 
-    log_success "Workstation $target_workstation is in expected state: $state"
+    log_success "Workstation '${target_workstation}' is in expected state: '${state}'."
 }
 
 # Fetch remote Terraform state and construct a tfvars JSON

@@ -16,16 +16,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: keycloak-sa
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
-    iam.gke.io/gcp-service-account: gke-keycloak-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: gke-{{ .Values.config.namespacePrefix }}keycloak-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-initial-creds
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 ---
@@ -33,7 +33,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-horizon-admin
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   labels:
     jenkins.io/credentials-type: "usernamePassword"
   annotations:
@@ -46,7 +46,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-gerrit-admin
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   labels:
     jenkins.io/credentials-type: "usernamePassword"
   annotations:
@@ -59,7 +59,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-jenkins-admin
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   labels:
     jenkins.io/credentials-type: "usernamePassword"
   annotations:
@@ -72,19 +72,29 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-grafana-admin
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 type: Opaque
 stringData:
   username: "admin"
-
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-argocd-admin
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+type: Opaque
+stringData:
+  username: "argocd-admin"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgresql-initial-creds
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   labels:
     jenkins.io/credentials-type: "usernamePassword"
   annotations:
@@ -97,7 +107,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-mcp-gateway-registry-admin
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 type: Opaque
@@ -108,7 +118,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
 metadata:
   name: keycloak-secret-store
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -126,7 +136,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: keycloak-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -140,14 +150,14 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: keycloak-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}keycloak-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: keycloak-horizon-admin-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -161,14 +171,14 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: keycloak-horizon-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}keycloak-horizon-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: gerrit-admin-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -182,14 +192,14 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: gerrit-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}gerrit-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: jenkins-admin-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -203,14 +213,14 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: jenkins-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}jenkins-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: grafana-admin-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -224,15 +234,35 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: grafana-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}grafana-admin-password-b64
         decodingStrategy: Base64
-
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: argocd-admin-initial-secret
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  refreshInterval: 10s
+  secretStoreRef:
+    kind: SecretStore
+    name: keycloak-secret-store
+  target:
+    name: keycloak-argocd-admin
+    creationPolicy: Merge
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ .Values.config.namespacePrefix }}argocd-admin-password-b64
+        decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: postgresql-admin-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -246,14 +276,14 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: postgres-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}postgres-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: mcp-gateway-registry-admin-initial-secret
-  namespace: keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -267,5 +297,5 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: mcp-gateway-registry-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}mcp-gateway-registry-admin-password-b64
         decodingStrategy: Base64

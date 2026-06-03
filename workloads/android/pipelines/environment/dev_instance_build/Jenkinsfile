@@ -38,7 +38,7 @@ pipeline {
       kind: Pod
       metadata:
         annotations:
-          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
         labels:
           aaos_pod: "true"
       spec:
@@ -100,7 +100,7 @@ pipeline {
       kind: Pod
       metadata:
         annotations:
-          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
         labels:
           aaos_pod: "true"
       spec:
@@ -141,9 +141,9 @@ pipeline {
           volumeMounts:
             - mountPath: /aaos-cache
               name: aaos-cache
-            - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
               readOnly: true
-              name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         volumes:
           - name: aaos-cache
             ephemeral:
@@ -155,9 +155,9 @@ pipeline {
                       storage: ${STORAGE_SIZE}
                   accessModes:
                     - ReadWriteOnce
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
             persistentVolumeClaim:
-              claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         nodeSelector:
           workloadLabel: android
     """.stripIndent()
@@ -167,7 +167,7 @@ pipeline {
       kind: Pod
       metadata:
         annotations:
-          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
         labels:
           aaos_abfs_pod: "true"
       spec:
@@ -218,7 +218,10 @@ pipeline {
 
   stages {
     stage ('Start VM Instance') {
-      agent { kubernetes { yaml "${POD_TEMPLATE}" } }
+      agent { kubernetes {
+        yamlMergeStrategy merge()
+        yaml "${POD_TEMPLATE}"
+      } }
       stages {
         stage ('MTK Connect to Host Device') {
           when { expression { env.MTK_CONNECT_ENABLE == 'true' } }

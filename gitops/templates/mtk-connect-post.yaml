@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: mtk-connect-writer-sa
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 ---
@@ -24,7 +24,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: mtk-connect-writer-role
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 rules:
@@ -36,7 +36,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: mtk-connect-writer-rolebinding
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 subjects:
@@ -50,7 +50,7 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: mtk-connect-cluster-writer
+  name: {{ .Values.config.namespacePrefix }}mtk-connect-cluster-writer
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -58,24 +58,28 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: mtk-connect-writer-sa
-    namespace: mtk-connect
+    namespace: {{ .Values.config.namespacePrefix }}mtk-connect
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: mtk-connect-post-job
-  namespace: mtk-connect
+  name: {{ .Values.config.namespacePrefix }}mtk-connect-post-job
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "7"
     argocd.argoproj.io/hook: Sync
 spec:
   backoffLimit: 0
   ttlSecondsAfterFinished: 120
+  activeDeadlineSeconds: 600
   template:
     spec:
       serviceAccountName: mtk-connect-writer-sa
       containers:
         - name: mtk-connect-post-container
+          env:
+          - name: NAMESPACE_PREFIX
+            value: {{ .Values.config.namespacePrefix }}
           image: {{ .Values.config.postjobs.mtkconnect }}
           imagePullPolicy: Always
       restartPolicy: Never
@@ -83,8 +87,8 @@ spec:
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: mtk-connect-api-key-config
-  namespace: mtk-connect
+  name: {{ .Values.config.namespacePrefix }}mtk-connect-api-key-config
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "8"
 spec:
@@ -100,6 +104,8 @@ spec:
               #args: ["--api-domain", "{{ .Values.config.domain }}"] # add by nagao
               args: ["--api-domain", "cdc.horizon-sdv-stg"]
               env:
+              - name: NAMESPACE_PREFIX
+                value: {{ .Values.config.namespacePrefix }}
               - name: MTK_KEY_UPD_USERNAME
                 valueFrom:
                   secretKeyRef:

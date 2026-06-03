@@ -15,8 +15,8 @@
 apiVersion: "gerritoperator.google.com/v1beta15"
 kind: GerritCluster
 metadata:
-  name: gerrit
-  namespace: gerrit
+  name: {{ .Values.config.namespacePrefix }}gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 spec:
@@ -28,7 +28,7 @@ spec:
   storage:
     storageClasses:
       readWriteOnce: standard-rwo
-      readWriteMany: gerrit-rwx
+      readWriteMany: {{ .Values.config.namespacePrefix }}gerrit-rwx
     sharedStorage:
       externalPVC:
         enabled: true
@@ -36,7 +36,7 @@ spec:
   refdb:
     database: ZOOKEEPER
     zookeeper:
-      connectString: zookeeper.zookeeper.svc.cluster.local:2181
+      connectString: {{ .Values.config.namespacePrefix }}zookeeper.{{ .Values.config.namespacePrefix }}zookeeper.svc.cluster.local:2181
   ingress:
     enabled: false
     pathPrefix: /gerrit

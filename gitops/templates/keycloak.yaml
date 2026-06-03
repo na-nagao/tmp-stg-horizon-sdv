@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,18 +15,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: keycloak
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}keycloak
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     chart: keycloakx
     repoURL: https://codecentric.github.io/helm-charts
-    targetRevision: {{ .Values.config.applications.keycloak.version }}
+    targetRevision: {{ .Values.config.chartVersions.keycloak.version }}
     helm:
       values: |
         command:
@@ -62,7 +62,7 @@ spec:
           existingSecret: postgresql-initial-creds
           vendor: postgres
           port: 5432
-          hostname: postgresql
+          hostname: {{ .Values.config.namespacePrefix }}postgresql
           username: dbusername
           database: keycloak
 
@@ -74,8 +74,229 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: keycloak
+    namespace: {{ .Values.config.namespacePrefix }}keycloak
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated: {}
+---
+# Allow Keycloak ingress from services (OAuth/OIDC clients) and post-jobs
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-keycloak-ingress-from-clients
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector: {}  # Allow from same namespace (post-jobs)
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}jenkins
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}gerrit
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}monitoring
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}headlamp
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}mtk-connect
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}argocd
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}horizon-api
+    ports:
+    - protocol: TCP
+      port: 8080   # HTTP API
+
+{{- end }}
+---
+# Allow Keycloak to access PostgreSQL (same namespace)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-keycloak-egress-to-postgres
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+          app.kubernetes.io/component: primary
+    ports:
+    - protocol: TCP
+      port: 5432   # PostgreSQL
+
+{{- end }}
+---
+# Allow PostgreSQL ingress from Keycloak
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-ingress
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloakx
+    ports:
+    - protocol: TCP
+      port: 5432   # PostgreSQL
+{{- end }}
+---
+# Allow post-jobs to access Keycloak
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-keycloak
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchExpressions:
+    - key: job-name
+      operator: In
+      values:
+      - {{ .Values.config.namespacePrefix }}keycloak-post-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argocd-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-headlamp-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-jenkins-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mcp-gateway-registry-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mtk-connect-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-gerrit-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-grafana-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argo-workflows-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-dev-portal-client-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-api-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloakx
+    ports:
+    - protocol: TCP
+      port: 8080   # HTTP API
+{{- end }}
+---
+# Allow post-jobs internet egress (for downloading packages)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-internet
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchExpressions:
+    - key: job-name
+      operator: In
+      values:
+      - {{ .Values.config.namespacePrefix }}keycloak-post-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argocd-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-headlamp-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-jenkins-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mcp-gateway-registry-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mtk-connect-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-gerrit-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-grafana-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argo-workflows-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-dev-portal-client-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-api-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443    # HTTPS
+    - protocol: TCP
+      port: 80     # HTTP
+{{- end }}
+---
+# Allow post-jobs to access Kubernetes API
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-kube-api
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchExpressions:
+    - key: job-name
+      operator: In
+      values:
+      - {{ .Values.config.namespacePrefix }}keycloak-post-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argocd-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-headlamp-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-jenkins-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mcp-gateway-registry-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-mtk-connect-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-gerrit-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-grafana-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-argo-workflows-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-dev-portal-client-job
+      - {{ .Values.config.namespacePrefix }}keycloak-post-horizon-api-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+    - protocol: TCP
+      port: 6443   # Kubernetes API (alternative port)
+
+{{- end }}

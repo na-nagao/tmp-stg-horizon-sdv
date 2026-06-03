@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22.13.0
-RUN apt update -y && apt install vim curl jq -y
+FROM --platform=linux/amd64 node:22-alpine
+RUN apk update && apk upgrade && apk add --no-cache bash vim curl jq
 WORKDIR /home/node
-ADD package.json ./
-ADD keycloak.mjs ./
-ADD configure.sh ./
-ADD secret.json ./
+ADD --chown=node:node package.json ./
+ADD --chown=node:node keycloak.mjs ./
+ADD --chown=node:node configure.sh ./
+ADD --chown=node:node secret.json ./
 RUN chmod +x configure.sh
 USER node
 CMD ["/bin/bash", "-c", "/home/node/configure.sh"]

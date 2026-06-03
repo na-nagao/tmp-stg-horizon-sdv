@@ -34,7 +34,7 @@ METADATA_FILE_ROOT_KEY=$(basename "${MIRROR_ROOT_SUBDIR_PATH}")
 source "$(dirname "$0")/../utils/utils.sh"
 
 log_info "Storage info for Mirror PVC before deletion:"
-get_aosp_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
+get_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
 
 # ------Delete Specific Mirror Directory------
 
@@ -54,7 +54,7 @@ if [[ "${DELETE_ENTIRE_MIRROR_SETUP}" != "true" && -n "${MIRROR_DIR_TO_DELETE}" 
   delete_mirror_entry_from_metadata "${METADATA_FILE_FULL_PATH}" "${METADATA_FILE_ROOT_KEY}" "${MIRROR_DIR_TO_DELETE}"
 
   log_info "Storage info for Mirror PVC after deletion:"
-  get_aosp_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
+  get_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
 
   exit 0
 

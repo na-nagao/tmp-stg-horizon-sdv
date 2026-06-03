@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22.13.0
-RUN apt update -y && apt install vim curl jq -y
+FROM --platform=linux/amd64 node:22-alpine
+RUN apk update && apk upgrade && apk add --no-cache bash vim curl jq
 WORKDIR /home/node
-ADD configure.sh ./
+ADD --chown=node:node configure.sh ./
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 RUN mv ./kubectl /usr/local/bin && chmod +x /usr/local/bin/kubectl && chmod +x configure.sh
 USER node

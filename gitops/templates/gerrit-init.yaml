@@ -16,16 +16,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: gerrit-sa
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
-    iam.gke.io/gcp-service-account: gke-gerrit-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: gke-{{ .Values.config.namespacePrefix }}gerrit-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: gerrit-ssh-private-key
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 type: Opaque
@@ -34,7 +34,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: jenkins-gerrit-ssh-private-key
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   labels:
     jenkins.io/credentials-type: "basicSSHUserPrivateKey"
   annotations:
@@ -48,7 +48,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
 metadata:
   name: gerrit-secret-store
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -66,7 +66,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: gerrit-ssh-private-key-secret
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -80,14 +80,14 @@ spec:
   data:
     - secretKey: privatekey
       remoteRef:
-        key: gerrit-admin-ssh-key-b64
+        key: {{ .Values.config.namespacePrefix }}gerrit-admin-ssh-key-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: jenkins-gerrit-ssh-private-key-secret
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -101,5 +101,5 @@ spec:
   data:
     - secretKey: privateKey
       remoteRef:
-        key: gerrit-admin-ssh-key-b64
+        key: {{ .Values.config.namespacePrefix }}gerrit-admin-ssh-key-b64
         decodingStrategy: Base64

@@ -16,7 +16,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   name: headlamp-route
-  namespace: headlamp
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
   labels:
     gateway: gke-gateway
   annotations:
@@ -25,7 +25,7 @@ spec:
   parentRefs:
     - kind: Gateway
       name: gke-gateway
-      namespace: gke-gateway
+      namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
 
     # add by nagao
@@ -55,14 +55,14 @@ spec:
               type: ReplacePrefixMatch
               replacePrefixMatch: /headlamp/
       backendRefs:
-        - name: headlamp-oauth2-proxy
+        - name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
           port: 80
 ---
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: headlamp-healthcheck
-  namespace: headlamp
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -82,4 +82,30 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: headlamp-oauth2-proxy
+    name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
+---
+# Allow OAuth2 Proxy ingress from Gateway
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-oauth2-proxy-ingress-from-gateway
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 80     # HTTP traffic
+    - protocol: TCP
+      port: 4180   # OAuth2 proxy
+    - protocol: TCP
+      port: 44180  # Token injector
+
+{{- end }}

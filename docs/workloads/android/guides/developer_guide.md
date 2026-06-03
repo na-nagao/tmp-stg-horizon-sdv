@@ -142,6 +142,8 @@ To build Android targets and utilise other pipeline jobs, it is mandatory to run
 
 This job generates the Google Compute Engine (GCE) instance templates required by test pipelines to provision Cuttlefish-ready and CTS-ready cloud instances. These instances are then used to launch [CVD](https://source.android.com/docs/devices/cuttlefish) and execute [CTS](https://source.android.com/docs/compatibility/cts) tests.
 
+The CF Instance Template job now uses a Packer-based image build flow and creates templates from the baked image. Script stage mapping is `1=build`, `2=ssh refresh`, `3=delete`; see `docs/workloads/android/environment/cf_instance_template.md`.
+
 **Prerequisites:**
 
 The `Docker Image Template` job must be completed before running this job.
@@ -2021,7 +2023,7 @@ Gerrit triggers are based on a single project/repo build, i.e. build one compone
 
 Cuttlefish instance templates are instances pre-installed with Android cuttlefish debian host packages, Android 14, 15 and 16 CTS, together with other tools required to launch CVD and run CTS tests. There are two instances we have created ahead of time:
 
-- `cuttlefish-vm-v1350` based on [android-cuttlefish.git v1.35.0 tag](https://github.com/google/android-cuttlefish/tree/v1.35.0)
+- `cuttlefish-vm-v1410` based on [android-cuttlefish.git v1.41.0 tag](https://github.com/google/android-cuttlefish/tree/v1.41.0)
 - `cuttlefish-vm-main` based on [android-cuttlefish.git main branch](https://github.com/google/android-cuttlefish/tree/main)
 
 Users may wish to create newer versions as the android-cuttlefish repo is updated and new tagged versions appear. This section describes how to create the instance templates and configure the test jobs to use those instances.
@@ -2029,7 +2031,7 @@ Users may wish to create newer versions as the android-cuttlefish repo is update
 > [!NOTE]
 > Instance templates take around 1 hour to create. This is because the install of android-cuttlefish takes a significant time, together with downloading and installing Android 14, 15 and 16 CTS takes around 25 minutes. The remaining time is based on GCP gcloud CLI commands, these commands can complete before the change is actually visible, therefore there are some mandatory delays included to ensure settling time of the gcloud CLI updates.
 >
-> Refer to the OSS repo: [horizon-sdv](https://github.com/googlecloudplatform/horizon-sdv) `docs/workloads/environment/cf_instance_template.md` for more details.
+> Refer to the OSS repo: [horizon-sdv](https://github.com/googlecloudplatform/horizon-sdv) `docs/workloads/android/environment/cf_instance_template.md` for more details.
 
 
 <details><summary>Create Instance Template</summary>
@@ -2134,7 +2136,7 @@ If users are interested in how these machine types are configured, then refer to
 **Android Build Jobs: `c2d-highcpu-112`**
 - `./terraform/env/main.tf`: `sdv_build_node_pool_machine_type   = "c2d-highcpu-112"`
 - `./terraform/modules/base/variables.tf`: ` default     = "c2d-highcpu-112"`
-  - Requires GitHub actions to run the Terraform workflow to apply any changes.
+  - Re-run the deployment script to apply any Terraform changes.
 - Jenkinsfile `kubernetesPodTemplate` POD configuration:
   - Refer to `resources`, `limits` and `requests` in the Jenkinsfile. These are optimised to the Jenkins pipeline builds and
     need for additional resources for the Jenkins agent etc. You may adjust to your machine limits.
@@ -2145,7 +2147,7 @@ If users are interested in how these machine types are configured, then refer to
 **OpenBSW Build Jobs: `n1-standard-8`**
 - `./terraform/env/main.tf`: `sdv_openbsw_build_node_pool_machine_type   = "n1-standard-8"`
 - `./terraform/modules/base/variables.tf`: ` default     = "n1-standard-8"`
-  - Requires GitHub actions to run the Terraform workflow to apply any changes.
+  - Re-run the deployment script to apply any Terraform changes.
 
 **Test Jobs: `n2-standard-32`**
 - This is part of the `Android Workflows` → `Environment` → `CF Instance Template` configuration.

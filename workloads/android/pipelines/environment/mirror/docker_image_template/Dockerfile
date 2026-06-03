@@ -44,7 +44,7 @@ RUN apt-get update -y && \
 
 # Add a non-root user for security best practices.
 # GID (1000) of this user will be granted write access to mounted NFS volume via initContainer in the Pod spec.
-ARG USER=horizon-sdv-aosp-mirror-ops
+ARG USER=horizon-sdv-mirror-ops
 RUN useradd -u 1000 -ms /bin/bash ${USER} && \
     passwd -d ${USER} && \
     # SSH Configuration for Git/Repo
@@ -57,6 +57,6 @@ USER ${USER}
 WORKDIR /home/${USER}
 
 # Configure git config (fake details)
-RUN git config --global user.email "horizon-sdv-aosp-mirror-ops@example.com" && \
-    git config --global user.name "horizon-sdv-aosp-mirror-ops" && \
+RUN git config --global user.email "horizon-sdv-mirror-ops@example.com" && \
+    git config --global user.name "horizon-sdv-mirror-ops" && \
     git config --global color.ui false

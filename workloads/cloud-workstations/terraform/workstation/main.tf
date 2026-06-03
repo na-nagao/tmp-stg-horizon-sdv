@@ -33,6 +33,18 @@ resource "google_workstations_workstation" "sdv_cloud_ws" {
   display_name            = each.value.sdv_cloud_ws_display_name
 }
 
+// Add a short delay after workstation creation to ensure it's fully ready
+// This helps prevent concurrent IAM policy modification conflicts (409 errors)
+resource "time_sleep" "workstation_ready" {
+  for_each = var.workstations
+
+  depends_on = [
+    google_workstations_workstation.sdv_cloud_ws
+  ]
+
+  create_duration = "5s"
+}
+
 // Grant users the Workstation User role (this gives workstations.workstations.use permission)
 resource "google_workstations_workstation_iam_binding" "sdv_cloud_ws_user_bindings" {
   for_each = local.emails_by_cloud_ws
@@ -49,4 +61,15 @@ resource "google_workstations_workstation_iam_binding" "sdv_cloud_ws_user_bindin
     for email in each.value :
     "user:${email}"
   ]
+
+  # Ensure the workstation is fully created and ready before applying IAM bindings
+  depends_on = [
+    google_workstations_workstation.sdv_cloud_ws,
+    time_sleep.workstation_ready
+  ]
+
+  # Add lifecycle rule to handle concurrent IAM policy changes
+  lifecycle {
+    create_before_destroy = false
+  }
 }

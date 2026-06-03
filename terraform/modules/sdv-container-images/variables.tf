@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-# Description
-# Configuration file containing variables for the "sdv-container-images" module.
 
 variable "gcp_project_id" {
   description = "Project ID of the Google Artifact Registry"
@@ -31,10 +28,17 @@ variable "gcp_registry_id" {
 }
 
 variable "images" {
-  description = "A map of images to build. The key is the image name and the value is an object containing its build directory and version."
+  description = <<-EOT
+    Map of images to build. Key = image name in Artifact Registry.
+    Default context: images/<directory>/<key>. Optional context_path + dockerfile_path
+    allow overriding context_path and dockerfile_path when they differ from images/<directory>/<key>.
+  EOT
   type = map(object({
-    directory  = string
-    version    = string
-    build_args = optional(map(string), {})
+    directory       = string
+    version         = string
+    build_args      = optional(map(string), {})
+    context_path    = optional(string)
+    dockerfile_path = optional(string)
+    platform        = optional(string)
   }))
 }

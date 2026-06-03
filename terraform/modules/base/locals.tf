@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Details required for configuring Kubernetes providers and container image
-# details along with version to be built and version to be deployed.
 
 locals {
   connect_gateway_url = format(
@@ -24,7 +20,7 @@ locals {
     module.sdv_gke_cluster.name
   )
 
-  common_nginx_version = "1.28.0-alpine"
+  common_nginx_version = "1.28.1-alpine3.23"
 
   images = {
     # build_version: version of container images to be built and pushed to Artifact Registry.
@@ -104,5 +100,51 @@ locals {
       build_version  = "1.0.0"
       deploy_version = "1.0.0"
     }
+    "keycloak-post-argo-workflows" = {
+      directory      = "keycloak"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+    }
+    "keycloak-post-horizon-api" = {
+      directory      = "keycloak"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+    }
+    # Developer portal (Vite + Go proxy). context_path is set so sdv-container-images trigger hashing skips node_modules/dist (same as former external client tree).
+    "horizon-dev-portal" = {
+      directory      = "horizon-dev-portal"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+      context_path   = abspath("${path.module}/../sdv-container-images/images/horizon-dev-portal/horizon-dev-portal")
+      platform       = "linux/amd64"
+    }
+    "module-manager-app" = {
+      directory      = "module-manager"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+    }
+    "workflow-namespace-drain-app" = {
+      directory      = "workflow-namespace-drain"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+    }
+    "horizon-api-app" = {
+      directory      = "horizon-api"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+    }
+    "kcc-webhook-cert-monitor" = {
+      directory      = "kcc-webhook-cert-monitor"
+      build_version  = "1.0.0"
+      deploy_version = "1.0.0"
+      platform       = "linux/amd64"
+    }
   }
+
+  # Merge Main + Sub-Envs into one map (for certificate manager domains)
+  cert_domains = merge(
+    { main = "${var.env_name}.${var.domain_name}" },
+    { for env in var.sdv_sub_environments : env => "${env}.${var.env_name}.${var.domain_name}" }
+  )
 }
+

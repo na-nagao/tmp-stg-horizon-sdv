@@ -18,7 +18,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mtk-connect-config
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 data:
@@ -114,9 +114,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mtk-connect-mongodb
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   labels:
-    app: mtk-connect-mongodb
+    app.kubernetes.io/name: mtk-connect-mongodb
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
@@ -125,11 +125,11 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: mtk-connect-mongodb
+      app.kubernetes.io/name: mtk-connect-mongodb
   template:
     metadata:
       labels:
-        app: mtk-connect-mongodb
+        app.kubernetes.io/name: mtk-connect-mongodb
     spec:
       containers:
         - name: mongodb
@@ -163,9 +163,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mtk-connect
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   labels:
-    app: mtk-connect
+    app.kubernetes.io/name: mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
@@ -174,11 +174,11 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: mtk-connect
+      app.kubernetes.io/name: mtk-connect
   template:
     metadata:
       labels:
-        app: mtk-connect
+        app.kubernetes.io/name: mtk-connect
     spec:
       securityContext:
         fsGroup: 1000
@@ -245,7 +245,7 @@ spec:
               memory: 400Mi
           env:
             - name: devices__version
-              value: {{ .Values.config.applications.mtkconnect.version }}
+              value: {{ .Values.config.chartVersions.mtkconnect.version }}
           volumeMounts:
             - mountPath: /usr/src/config/config.json
               name: mtk-connect-config
@@ -267,7 +267,7 @@ spec:
               name: mtk-connect-config
               subPath: config.json
         - name: installers
-          image: "{{ .Values.config.gitops.mtkconnect.installerlocation }}:{{ .Values.config.applications.mtkconnect.version }}"
+          image: "{{ .Values.config.gitops.mtkconnect.installerlocation }}:{{ .Values.config.chartVersions.mtkconnect.version }}"
           resources:
             requests:
               cpu: 50m
@@ -309,12 +309,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mtk-connect-router
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
   selector:
-    app: mtk-connect
+    app.kubernetes.io/name: mtk-connect
   ports:
     - protocol: TCP
       port: 8081
@@ -324,12 +324,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mtk-connect-wamprouter
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
   selector:
-    app: mtk-connect
+    app.kubernetes.io/name: mtk-connect
   ports:
     - protocol: TCP
       appProtocol: kubernetes.io/ws
@@ -340,12 +340,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mtk-connect-websockets
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
   selector:
-    app: mtk-connect
+    app.kubernetes.io/name: mtk-connect
   ports:
     - protocol: TCP
       appProtocol: kubernetes.io/ws
@@ -356,12 +356,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mtk-connect-mongodb
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
   selector:
-    app: mtk-connect-mongodb
+    app.kubernetes.io/name: mtk-connect-mongodb
   ports:
     - protocol: TCP
       port: 27017

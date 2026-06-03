@@ -15,20 +15,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: headlamp-token-injector
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}headlamp-token-injector
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     path: gitops/apps/token-injector
     targetRevision: {{ .Values.spec.source.targetRevision }}
     helm:
       values: |
+        config:
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
         image:
           repository: nginx
           tag: "1.23"
@@ -37,12 +39,92 @@ spec:
           create: false
           name: headlamp-admin
         upstream:
-          host: headlamp.headlamp.svc.cluster.local
+          host: {{ .Values.config.namespacePrefix }}headlamp.{{ .Values.config.namespacePrefix }}headlamp.svc.cluster.local
           port: 80
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: headlamp
+    namespace: {{ .Values.config.namespacePrefix }}headlamp
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+---
+# Allow Token Injector ingress from OAuth2 Proxy
+---
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-token-injector-ingress
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}headlamp-token-injector
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: oauth2-proxy
+    ports:
+    - protocol: TCP
+      port: 8080   # Token injector
+
+{{- end }}
+---
+# Allow Token Injector to access Headlamp
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-token-injector-egress-to-headlamp
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}headlamp-token-injector
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: headlamp
+    ports:
+    - protocol: TCP
+      port: 80     # Headlamp backend
+    - protocol: TCP
+      port: 4466   # Headlamp backend
+{{- end }}
+---
+# Allow Token Injector to access Kubernetes API (for service account tokens)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-token-injector-egress-to-kube-api
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}headlamp-token-injector
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+
+{{- end }}

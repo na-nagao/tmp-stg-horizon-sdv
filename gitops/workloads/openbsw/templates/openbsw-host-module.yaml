@@ -15,8 +15,8 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: openbsw-host-module-dameonset
-  namespace: jenkins
+  name: {{ .Values.config.namespacePrefix }}openbsw-host-module-dameonset
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:

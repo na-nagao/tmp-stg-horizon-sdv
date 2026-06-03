@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $gerrit_external_url := .Values.server.config.external_url | replace "##DOMAIN##" .Values.config.gitops.domain -}}
+{{- $gerrit_external_url := .Values.server.config.external_url | replace "##DOMAIN##" .Values.config.gitops.domain }}
 
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: gerrit-mcp-server-config
+  name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server-config
 data:
   gerrit_config.json: |-
     {
@@ -39,16 +39,16 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gerrit-mcp-server
+  name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: gerrit-mcp-server
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
   template:
     metadata:
       labels:
-        app: gerrit-mcp-server
+        app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
     spec:
       containers:
         - name: gerrit-mcp-server
@@ -73,16 +73,16 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: gerrit-mcp-server-config
+            name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server-config
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: gerrit-mcp-server
+  name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
 spec:
   type: ClusterIP
   ports:
     - port: 6322
       targetPort: {{ .Values.server.port }}
   selector:
-    app: gerrit-mcp-server
+    app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server

@@ -26,6 +26,7 @@
     - [OAuth2 Proxy](#oauth-proxy)
     - [Token Injector](#token-injector)
     - [Post Jobs](#post-jobs)
+- [Config Connector webhook reliability](#config-connector-webhook-reliability)
 
 ## GitOps overview
 
@@ -64,14 +65,14 @@ Project executes successively following files and performs operations defined in
 
 To start GitOps deployment process it is required to provide list of configure parameters. They are used to create applications in the Horizon SDV platform. These parameters are provided as environment variables. List of input configuration parameters is provided below:
 
-- GITHUB_REPO_NAME (repository name, without https://github.com prefix)
-- GITHUB_REPO_BRANCH_NAME (repository branch to be used for deployment)
+- GIT_REPO_NAME (repository name, without https://github.com prefix)
+- GIT_REPO_BRANCH_NAME (repository branch to be used for deployment)
 - GCP_PROJECT_ID (GCP Project ID)
 - GCP_CLOUD_REGION (GCP Cloud Region)
 - GCP_CLOUD_ZONE (GCP Cloud Zone)
 - GCP_BACKEND_BUCKET_NAME (GCP Bucket used to store tfstate)
-- GITHUB_ENV_NAME (Environment name, also used as a subdomain)
-- GITHUB_DOMAIN_NAME (top level domain name)
+- GIT_ENV_NAME (Environment name, also used as a subdomain)
+- GIT_DOMAIN_NAME (top level domain name)
 
 
 ## ArgoCD overview
@@ -317,3 +318,8 @@ A collection of scripts that handle application-specific configurations when sta
 - **mtk-connect-post** – Configures MTK Connect after installation, ensuring it is properly set up for use.
 - **mtk-connect-post-key** – Generates and configures necessary API keys for MTK Connect.
 - **gerrit-post** – Uses the gerrit-admin account to perform the initial setup and configuration of Gerrit.
+
+## Config Connector webhook reliability
+
+Config Connector webhook TLS verification is centralized via CronJob in
+`gitops/templates/config-connector.yaml`, while module charts keep ordered sync waves.

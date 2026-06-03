@@ -1,0 +1,131 @@
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if not .Values.config.isSubEnvironment }}
+# Allow Kubescape components to access Kubernetes API
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kubescape-egress-to-kube-api
+  namespace: kubescape
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubescape
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+    - protocol: TCP
+      port: 6443   # Kubernetes API (alternative port)
+{{- end }}
+---
+# Allow Kubescape to scan all namespaces
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kubescape-egress-to-all-namespaces
+  namespace: kubescape
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubescape
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector: {}
+{{- end }}
+---
+# Allow Kubescape internal communication
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kubescape-internal-communication
+  namespace: kubescape
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubescape
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: kubescape
+    ports:
+    - protocol: TCP
+      port: 8080   # Kubescape, kubevuln, node-agent APIs
+    - protocol: TCP
+      port: 443    # Storage service, admission webhook
+    - protocol: TCP
+      port: 4002   # Operator service
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: kubescape
+    ports:
+    - protocol: TCP
+      port: 8080   # Kubescape, kubevuln, node-agent APIs
+    - protocol: TCP
+      port: 443    # Storage service, admission webhook
+    - protocol: TCP
+      port: 4002   # Operator service
+{{- end }}
+---
+# Allow Kubernetes API server to access Kubescape storage (for APIService)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kube-apiserver-to-kubescape-storage
+  namespace: kubescape
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app: storage
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Storage APIService
+    - protocol: TCP
+      port: 8443   # Storage APIService (alternative)
+{{- end }}
+{{- end }}

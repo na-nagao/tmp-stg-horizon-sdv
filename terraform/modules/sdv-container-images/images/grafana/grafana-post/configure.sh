@@ -34,7 +34,7 @@ GRAFANA_TEMP_FILE="temp_grafana_cm.yaml"
 UPDATED_GRAFANA_TEMP_FILE="updated_grafana_cm.yaml"
 
 #get grafana-keycloak-secret and prepare NEW_SECRET string
-NEW_SECRET="client_secret = "$(kubectl get secret --namespace monitoring  grafana-keycloak-secret -o jsonpath="{.data.client_secret}" | base64 --decode)
+NEW_SECRET="client_secret = "$(kubectl get secret --namespace ${NAMESPACE_PREFIX}monitoring  grafana-keycloak-secret -o jsonpath="{.data.client_secret}" | base64 -d)
 
 
 if [[ "${DEBUG:-0}" == "1" ]]; then
@@ -43,7 +43,7 @@ if [[ "${DEBUG:-0}" == "1" ]]; then
 fi
 
 #save current grafana configMap
-kubectl get cm -n monitoring grafana -o yaml > $GRAFANA_TEMP_FILE
+kubectl get cm -n ${NAMESPACE_PREFIX}monitoring ${NAMESPACE_PREFIX}grafana -o yaml > $GRAFANA_TEMP_FILE
 
 if [[ "${DEBUG:-0}" == "1" ]]; then
   echo "GRAFANA_TEMP_FILE with current secret: "
@@ -75,9 +75,8 @@ fi
 # apply configMap with new secret into K8s
 kubectl apply -f $UPDATED_GRAFANA_TEMP_FILE
 
- # reset grafana pod to apply changes
-POD_NAME=$(kubectl get pods -n monitoring | grep grafana | grep -v post | awk '{print $1}')
-kubectl delete pod $POD_NAME -n monitoring
+# reset grafana to apply changes
+kubectl rollout restart deployment/${NAMESPACE_PREFIX}grafana -n ${NAMESPACE_PREFIX}monitoring
 
  #clean up files
 rm $GRAFANA_TEMP_FILE $UPDATED_GRAFANA_TEMP_FILE

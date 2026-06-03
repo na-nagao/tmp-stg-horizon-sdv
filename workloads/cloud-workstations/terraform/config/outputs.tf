@@ -55,3 +55,8 @@ output "location" {
   description = "Region (Location) where Cloud WS cluster, configs and workstations are deployed."
   value       = var.sdv_cloud_ws_region
 }
+
+output "sdv_cloud_ws_zones_table" {
+  description = "List of zones availabe in region where Cloud WS is deployed."
+  value       = local.sdv_cloud_ws_zones
+}

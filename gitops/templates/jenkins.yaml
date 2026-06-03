@@ -15,34 +15,42 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: jenkins
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}jenkins
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "6"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   sources:
     - chart: jenkins
       repoURL: https://charts.jenkins.io
       targetRevision: {{ .Values.config.workloads.android.helm.version }}
       helm:
         values: |
-          github:
-              repoOwner: {{ .Values.github.repoOwner }}
-              repoName: {{ .Values.github.repoName }}
+          scm:
+            type: {{ .Values.scm.type }}
+            authMethod: {{ .Values.scm.authMethod }}
+            username: {{ .Values.scm.username }}
+            repoUrl: {{ .Values.scm.repoUrl }}
+            branch: {{ .Values.scm.branch }}
+            {{- if eq .Values.scm.type "github" }}
+            repoOwner: {{ .Values.scm.repoOwner }}
+            repoName: {{ .Values.scm.repoName }}
+            {{- end }}
           config:
             projectID: {{ .Values.config.projectID }}
             region: {{ .Values.config.region }}
             zone: {{ .Values.config.zone }}
-            backendBucket: {{ .Values.config.backendBucket }}
-            #domain: {{ .Values.config.domain }} #change by nagao 
+            backendBucket: {{ .Values.config.backendBucket }} 
             domain: cdc.horizon-sdv-stg
+            #domain: {{ .Values.config.domain }}
+            namespacePrefix: {{ .Values.config.namespacePrefix }}
             workloads:
               android:
-                url: {{ .Values.config.workloads.android.url }}
-                branch: {{ .Values.config.workloads.android.branch }}
+                url: {{ .Values.scm.repoUrl }}
+                branch: {{ .Values.scm.branch }}
           controller:
             #jenkinsUrl: https://{{ .Values.config.domain }}/jenkins # change by nagao
             jenkinsUrl: https://cdc.horizon-sdv-stg/jenkins
@@ -83,14 +91,206 @@ spec:
       path: gitops/workloads
   destination:
     server: https://kubernetes.default.svc
-    namespace: jenkins
+    namespace: {{ .Values.config.namespacePrefix }}jenkins
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated: {}
   ignoreDifferences:
     - kind: Secret
-      name: jenkins
-      namespace: jenkins
+      name: {{ .Values.config.namespacePrefix }}jenkins
+      namespace: {{ .Values.config.namespacePrefix }}jenkins
       jsonPointers:
         - /data
+---
+# Allow Jenkins controller SSH (port 22) to Cuttlefish VMs (GCE plugin connects from controller)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-controller-egress-ssh-to-cuttlefish
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 10.1.0.0/24   # GKE node / Cuttlefish VM primary subnet
+    - ipBlock:
+        cidr: 10.2.0.0/24   # ARM64 Cuttlefish VM subnet
+    ports:
+    - protocol: TCP
+      port: 22
+{{- end }}
+---
+# Allow Jenkins controller egress to Gerrit (SSH Git + HTTP API)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-controller-egress-to-gerrit
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}gerrit
+    ports:
+    - protocol: TCP
+      port: 29418  # Gerrit SSH Git protocol
+    - protocol: TCP
+      port: 8080   # Gerrit HTTP API
+{{- end }}
+---
+# Allow Jenkins controller to accept connections from agents (JNLP)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-controller-ingress-from-agents
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          jenkins/jenkins-jenkins-agent: "true"
+    ports:
+    - protocol: TCP
+      port: 50000   # JNLP agent port
+    - protocol: TCP
+      port: 8080    # Jenkins controller HTTP API
+    - protocol: TCP
+      port: 22      # Jenkins GCE SSH
+
+{{- end }}
+---
+# Allow Jenkins agents to communicate with controller (JNLP)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-agent-egress-to-controller
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      jenkins/jenkins-jenkins-agent: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: jenkins
+    ports:
+    - protocol: TCP
+      port: 50000   # JNLP agent port
+    - protocol: TCP
+      port: 8080    # Jenkins controller HTTP API
+    - protocol: TCP
+      port: 22      # Jenkins GCE SSH
+
+{{- end }}
+---
+# Allow Jenkins agents to access Kubernetes API server
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-agent-egress-to-kube-api
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      jenkins/jenkins-jenkins-agent: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+    - protocol: TCP
+      port: 6443   # Kubernetes API (alternative port)
+    - protocol: TCP
+      port: 22      # Jenkins GCE SSH
+
+{{- end }}
+---
+# Allow Jenkins agents SSH (TCP 22) to Cuttlefish VMs in VPC node / VM ranges
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-agent-egress-ssh-to-cuttlefish
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      jenkins/jenkins-jenkins-agent: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 10.1.0.0/24   # GKE node / Cuttlefish VM primary subnet
+    - ipBlock:
+        cidr: 10.2.0.0/24   # ARM64 node / Cuttlefish VM subnet
+    ports:
+    - protocol: TCP
+      port: 22
+{{- end }}
+---
+# Allow Jenkins agents to pull container images from internet and access metadata server
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jenkins-agent-egress-to-internet
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      jenkins/jenkins-jenkins-agent: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    # Allow all ports for Jenkins agents (needed for metadata server on various ports)
+
+{{- end }}

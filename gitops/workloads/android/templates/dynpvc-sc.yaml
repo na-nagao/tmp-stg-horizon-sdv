@@ -13,15 +13,17 @@
 # limitations under the License.
 #
 # Description:
-# Storage classes used for Jenkins build caches.
+# Storage classes used for Jenkins build caches and Argo workflow volumes.
 # Prefix reclaimable-storage-class is referenced in System Variables so
 # jobs may choose the correct storage class based on Android version and
 # target.
+# pipeline-workspace-delete: single Delete reclaim class for aaos-builder shared monorepo PVC (any Android
+# lunch/revision); disk removed when PVC is deleted. aaos-cache keeps per-version reclaimable Retain classes.
 
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-14
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-14
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -35,7 +37,20 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-14-rpi
+  name: {{ .Values.config.namespacePrefix }}pipeline-workspace-delete
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+provisioner: pd.csi.storage.gke.io
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  type: pd-balanced
+  csi.storage.k8s.io/fstype: ext4
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-14-rpi
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -49,7 +64,7 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-15
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-15
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -63,7 +78,7 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-15-rpi
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-15-rpi
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -77,7 +92,7 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-abfs
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-abfs
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -91,7 +106,7 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-16
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-16
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"
@@ -105,7 +120,7 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: reclaimable-storage-class-android-16-rpi
+  name: {{ .Values.config.namespacePrefix }}reclaimable-storage-class-android-16-rpi
   annotations:
     reclaimable-pv-releaser.kubernetes.io/controller-id: dynamic-reclaimable-pvc-controllers
     argocd.argoproj.io/sync-wave: "3"

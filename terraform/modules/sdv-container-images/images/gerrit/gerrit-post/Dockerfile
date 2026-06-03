@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:12.9
+FROM --platform=linux/amd64 debian:12.13
 ADD configure.sh /root
 ADD gerrit-secret.json /root
 ADD jenkins-gerrit-secret.json /root
 COPY account.config /root
 COPY externalId-keycloak-oauth-gerrit-admin /root
 COPY externalId-username-gerrit-admin /root
-RUN apt update -y
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install tzdata
-RUN apt install vim curl jq yq openssh-client git procps -y
+# Add security repository and upgrade all packages to fix CVEs
+RUN echo "deb http://security.debian.org/debian-security bookworm-security main" > /etc/apt/sources.list.d/security.list && \
+    apt update -y && apt upgrade -y && \
+    apt clean && rm -rf /var/lib/apt/lists/*
+RUN apt update -y && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install tzdata
+RUN apt install vim curl jq yq openssh-client git procps -y && \
+    apt clean && rm -rf /var/lib/apt/lists/*
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 RUN mv /kubectl /usr/local/bin && chmod +x /usr/local/bin/kubectl && chmod +x /root/configure.sh
 CMD ["/bin/bash", "-c", "/root/configure.sh"]

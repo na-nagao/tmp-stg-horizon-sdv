@@ -103,7 +103,11 @@ if ! check_key_exists_in_json_at_path "${REMOTE_TFVARS_JSON}" "." "$input_cloud_
   log_error "Workstation not found."
 fi
 
-validate_workstation_state "$input_cloud_ws_workstation_name"
+ws_config_name=$(get_json_value_by_key_at_path "$REMOTE_TFVARS_JSON" ".${input_cloud_ws_workstation_name}" "sdv_cloud_ws_workstation_config_id")
+ws_cluster_name=$(get_json_value_by_key_at_path "$TFVARS_JSON_FILE" "." "sdv_cloud_ws_cluster_name")
+ws_region=$(get_json_value_by_key_at_path "$TFVARS_JSON_FILE" "." "sdv_cloud_ws_region")
+
+assert_workstation_state "$input_cloud_ws_workstation_name" "$ws_config_name" "$ws_cluster_name" "$ws_region"
 add_users_to_workstation "$REMOTE_TFVARS_JSON" "$input_cloud_ws_workstation_name" "$input_cloud_ws_workstation_users"
 merge_json_into_path "$TFVARS_JSON_FILE" ".workstations" "$REMOTE_TFVARS_JSON"
 

@@ -79,12 +79,11 @@ spec:
         emptyDir: {}
       initContainers:
       - name: render-config
-        image: alpine:3.18
+        image: bhgedigital/envsubst:latest
         command:
         - /bin/sh
         - -c
         - |
-          apk add --no-cache gettext >/dev/null 2>&1 || true
           if [ -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
             TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
           else

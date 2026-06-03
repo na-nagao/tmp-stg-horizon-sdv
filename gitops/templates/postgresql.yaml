@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,17 +15,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: postgresql
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}postgresql
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: https://github.com/bitnami/charts
-    targetRevision: {{ .Values.config.applications.postgresql.version }}
+    targetRevision: {{ .Values.config.chartVersions.postgresql.version }}
     path: bitnami/postgresql
     helm:
       values: |
@@ -43,13 +43,15 @@ spec:
                 adminPasswordKey: postgres-password
                 userPasswordKey: password
         primary:
+          networkPolicy:
+            enabled: false
           persistence:
             accessMode: "ReadWriteOnce"
             enabled: true
-            existingClaim: "postgresql-data"
+            existingClaim: "{{ .Values.config.namespacePrefix }}postgresql-data"
   destination:
     server: https://kubernetes.default.svc
-    namespace: keycloak
+    namespace: {{ .Values.config.namespacePrefix }}keycloak
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

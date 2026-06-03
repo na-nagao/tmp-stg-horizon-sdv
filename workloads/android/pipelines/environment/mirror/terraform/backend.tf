@@ -15,6 +15,6 @@
 terraform {
   required_version = ">= 1.9.6"
   backend "gcs" {
-    prefix = "horizon-sdv-aosp-mirror-tf-state"
+    prefix = "horizon-sdv-mirror-tf-state"
   }
 }

@@ -21,3 +21,8 @@ output "location" {
   description = "The location (region/zone) of the GKE cluster."
   value       = google_container_cluster.sdv_cluster.location
 }
+
+output "cluster_id" {
+  description = "The ID of the GKE cluster (for dependency management)"
+  value       = google_container_cluster.sdv_cluster.id
+}

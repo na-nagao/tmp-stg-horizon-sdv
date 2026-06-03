@@ -292,11 +292,11 @@ These are as follows:
 -   `CLOUD_REGION`
     - The GCP project region. Important for bucket, registry paths used in pipelines.
 
--   `HORIZON_GITHUB_URL`
-    - The URL to the Horizon SDV GitHub repository.
+-   `HORIZON_SCM_URL`
+    - The URL to the Horizon SDV git repository.
 
--   `HORIZON_GITHUB_BRANCH`
-    - The branch name the job will be configured for from `HORIZON_GITHUB_URL`.
+-   `HORIZON_SCM_BRANCH`
+    - The branch name the job will be configured for from `HORIZON_SCM_URL`.
 
 -   `JENKINS_SERVICE_ACCOUNT`
     - Service account to use for pipelines. Required to ensure correct roles and permissions for GCP resources.

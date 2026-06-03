@@ -16,7 +16,7 @@ The ABFS Server VM instance will be seeded with the desired Android revision by 
 Before creating the ABFS Server VM instance, the following dependencies must be met:
 - **Seed Workloads**: Android workload must be seeded to ensure the common parameters are set for the job.
 - **Service Account Creation**: The abfs-server service account must be created in the GCP project.
-- **ABFS License Deployment**: The ABFS license provided by Google must be deployed on the platform using GitHub environment secrets and Terraform workflow.
+- **ABFS License Deployment**: The ABFS license provided by Google must be deployed on the platform via Jenkins.
 - **Docker Infra Image Template Job**:The Docker Infra Image Template job must be run, and the Docker image must be available in the registry.
 
 Consider using `Get Server Details` to ensure the server has been provisioned correctly.
@@ -35,6 +35,10 @@ The action to perform to create, destroy, stop, start, restart server.
 - `APPLY`: use this to create the instance based on the set of defined parameters.
 - `DESTROY`: use this to delete the instance.
 - `STOP`|`START`|`RESTART`: useful for stopping expensive instances and starting when required.
+
+### `ABFS_LICENSE_B64`
+
+Google provided license file converted to base64. This is mandatory for `ABFS_TERRAFORM_ACTION` `APPLY` actions. Without this license, the ABFS server will not be functional.
 
 ### `SERVER_MACHINE_TYPE`
 
@@ -56,21 +60,79 @@ Note: this can change, so the `Seed Workloads` job supports this parameter to al
 
 This is the Docker registry the ABDS docker image/containers for server will be pulled from.
 
-### `SPANNER_DDL_FILE`
-
-Spanner is used by the ABFS server and as such, this is the schema file for the database.
-
-### `TERRAFORM_GITHUB_URL`
+### `GOOGLE_ABFS_TERRAFORM_GIT_URL`
 
 The URL for Google Terraform modules for ABFS.
 
-### `TERRAFORM_GITHUB_VERSION`
+### `GOOGLE_ABFS_TERRAFORM_VERSION`
 
-The sha1 for Google Terraform modules for ABFS.
+The git tag or sha1 for Google Terraform modules for ABFS. Default is `v0.10.0`.
 
-### `ABFS_LICENSE_B64`
+### `ABFS_EXTRA_PARAMS`
 
-This is a local override of the ABFS license that was created in GitHub environment secrets and stored as a kubernetes secret. It's purpose is to allow users test license updates locally, prior to updating GitHub, Terraform and ArgoCD to apply the license formally to the project.
+Optional.
+
+Purpose: pass advanced ABFS server runtime flags without changing Terraform/module code.
+
+Format: JSON array of strings, e.g. `["--flag=value","--other-flag"]`.
+
+Default: `[]` (no extra parameters).
+
+### `EXISTING_BUCKET_NAME`
+
+Optional.
+
+Purpose: reuse an existing GCS bucket for ABFS data and avoid creating a new one.
+
+Format: bucket name string.
+
+Default: empty string `""` (Terraform creates and manages ABFS bucket).
+
+### `ABFS_SPANNER_INSTANCE_MIN_NODES`
+
+Optional.
+
+Purpose: lower bound for ABFS Spanner instance autoscaling.
+
+Format: integer value.
+
+Default: `1`.
+
+### `ABFS_SPANNER_INSTANCE_MAX_NODES`
+
+Optional.
+
+Purpose: upper bound for ABFS Spanner instance autoscaling.
+
+Format: integer value.
+
+Default: `10`.
+
+### `ABFS_SPANNER_DATABASE_CREATE_TABLES`
+
+Optional.
+
+Purpose: control whether module creates ABFS Spanner tables from schema metadata.
+
+Format: boolean (`true` or `false`).
+
+Default: `false`.
+
+Upgrade guidance: keep this as `false` for Terraform module version upgrades or when a legacy ABFS Spanner DB already exists.
+
+New DB guidance: set this to `true` only when provisioning a new ABFS Spanner DB and you want module-driven table creation.
+
+Pipeline guard: for `APPLY`, the pipeline fails if this is `true` and an ABFS database already exists.
+
+### `ABFS_SPANNER_DATABASE_SCHEMA_VERSION`
+
+Optional.
+
+Purpose: choose schema version applied when table creation is enabled (`ABFS_SPANNER_DATABASE_CREATE_TABLES=true`).
+
+Format: schema version string (for example `0.0.31`).
+
+Default: `0.0.31`.
 
 ### `ABFS_COS_IMAGE_REF`
 Defines the ABFS Containerized OS images used on server and uploader instances.
@@ -92,11 +154,11 @@ These are as follows:
 -   `CLOUD_REGION`
     - The GCP project region. Important for bucket, registry paths used in pipelines.
 
--   `HORIZON_GITHUB_URL`
-    - The URL to the Horizon SDV GitHub repository.
+-   `HORIZON_SCM_URL`
+    - The URL to the Horizon SDV git repository.
 
--   `HORIZON_GITHUB_BRANCH`
-    - The branch name the job will be configured for from `HORIZON_GITHUB_URL`.
+-   `HORIZON_SCM_BRANCH`
+    - The branch name the job will be configured for from `HORIZON_SCM_URL`.
 
 -   `JENKINS_SERVICE_ACCOUNT`
     - Service account to use for pipelines. Required to ensure correct roles and permissions for GCP resources.

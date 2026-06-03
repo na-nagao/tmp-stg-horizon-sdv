@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "dns_auth_record" {
-  description = "The full DNS record object required for authz."
-  value       = google_certificate_manager_dns_authorization.instance.dns_resource_record[0]
+output "map_id" {
+  value = google_certificate_manager_certificate_map.horizon_sdv_map.id
+}
+
+# Flatten the DNS records so the DNS module can easily consume them
+output "dns_auth_records" {
+  value = flatten([
+    for k, v in google_certificate_manager_dns_authorization.instance : {
+      name = v.dns_resource_record[0].name
+      type = v.dns_resource_record[0].type
+      data = v.dns_resource_record[0].data
+    }
+  ])
 }

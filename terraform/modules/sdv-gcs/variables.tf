@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Configuration file containing variables for the "sdv-gcs" module.
 
 variable "bucket_name" {
   description = "Name of the bucket"
@@ -23,4 +20,10 @@ variable "bucket_name" {
 variable "location" {
   description = "Define the loation of the storage"
   type        = string
+}
+
+variable "lifecycle_delete_age_days" {
+  description = "If set, delete all bucket objects older than this many days (creation time). Omit for no age-based lifecycle rule."
+  type        = number
+  default     = null
 }

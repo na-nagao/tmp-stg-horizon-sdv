@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .Values.config.isSubEnvironment }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -24,3 +25,4 @@ volumeBindingMode: Immediate
 reclaimPolicy: Delete
 parameters:
   type: pd-standard
+{{- end }}

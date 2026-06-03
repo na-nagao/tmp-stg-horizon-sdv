@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Configuration file containing variables for the "sdv-secrets" module.
 
 variable "project_id" {
   description = "Define the project id"
@@ -30,9 +27,9 @@ variable "location" {
 variable "gcp_secrets_map" {
   description = "A map of secrets with their IDs and values."
   type = map(object({
-    secret_id        = string
-    value            = string
-    use_github_value = bool
+    secret_id   = string
+    value       = string
+    apply_value = bool
     gke_access = list(object({
       ns = string
       sa = string

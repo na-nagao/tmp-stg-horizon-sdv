@@ -32,6 +32,7 @@ pipeline {
     DESTINATION="${REGISTRY}/${env.CLOUD_PROJECT}/${env.CLOUD_WS_HORIZON_ASFP_IMAGE_NAME}"
     PUSH="${NO_PUSH == "true" ? "false" : "true"}"
     HORIZON_DOMAIN="${env.HORIZON_DOMAIN}"
+    GOOGLE_CLOUD_PROJECT="${env.CLOUD_PROJECT}"
 
     def kubernetesPodTemplate = """
       apiVersion: v1
@@ -122,6 +123,7 @@ pipeline {
                    --local context=. \
                    --opt platform=linux/amd64 \
                    --opt build-arg:HORIZON_DOMAIN=${HORIZON_DOMAIN} \
+                   --opt build-arg:GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT} \
                    --registry-auth-tlscontext host=${REGISTRY},insecure=true \
                    --output=type=image,name=${DESTINATION}:${IMAGE_TAG},push=${PUSH}
                 '''

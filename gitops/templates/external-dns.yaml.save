@@ -1,0 +1,76 @@
+# Copyright (c) 2026 Accenture, All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# Only deploy external-dns when not using static A records (zone delegation flow).
+{{- if not (index .Values.config "useStaticDnsARecords" | default false) }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.config.namespacePrefix }}external-dns
+  namespace: {{ .Values.config.namespacePrefix }}argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.19.0
+    helm:
+      values: |
+        provider: google
+        google:
+          project: "{{ .Values.config.projectID }}"
+
+        domainFilters:
+      {{- if .Values.config.isSubEnvironment }}
+          - "{{ regexReplaceAll "^[^.]+\\." .Values.config.domain "" }}"
+      {{- else }}
+          - "{{ .Values.config.domain }}"
+<<<<<<< HEAD
+          #- cdc.horizon-sdv-stg # by nagao
+=======
+      {{- end }}
+
+>>>>>>> origin/horizon_official
+        sources:
+          - gateway-httproute
+
+        serviceAccount:
+          create: true
+          name: external-dns-sa
+          annotations:
+            iam.gke.io/gcp-service-account: "{{ .Values.config.namespacePrefix }}external-dns-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com"
+
+        policy: sync
+
+        # Apex TXT prefix so ExternalDNS can own and update the apex A record
+        # (e.g. <env_name>.horizon-sdv.com). Without this, the apex gets no valid
+        # ownership TXT and is not updated when the LB IP changes.
+        #
+        # Must be a valid DNS label. The previous value ("%{record_type}-.") expands
+        # to labels like "a-" which are rejected by IDNA and cause record churn.
+        txtPrefix: "txt-%{record_type}."
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.config.namespacePrefix }}external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+<<<<<<< HEAD
+=======
+{{- end }}
+>>>>>>> origin/horizon_official

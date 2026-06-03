@@ -38,13 +38,13 @@ If true, the image will be built but not pushed to the artifact registry.
 ### 2. Create Mirror Infrastructure <a name="2-create-mirror-infrastructure"></a>
 **Path:** `Android Workflows/Environment/Mirror/Create Mirror Infrastructure`
 
-This pipeline provisions the required GCP infrastructure for NFS-based mirror storage, including a Google Cloud Filestore instance and the corresponding Kubernetes Persistent Volume (PV) and Persistent Volume Claim (PVC).
+This pipeline automates the provisioning of high-performance NFS storage for Git mirrors. It dynamically allocates a Google Cloud Filestore instance and configures the necessary Kubernetes Persistent Volume (PV) and Claim (PVC) to make the storage available to the cluster.
 
 #### `IMAGE_TAG`
 The tag of the Docker image to use for the build environment. Defaults to `latest`.
-
+`
 #### `MIRROR_VOLUME_CAPACITY_GB`
-The size of the Filestore volume in GiB. The minimum is 1024. Size cannot be changed once created. Tip: A full AOSP Mirror consumes around 1946Gi (1.9Ti) of storage. So 2048Gi of total volume capacity is recommended.
+The size of the Filestore volume in GiB. The minimum is 1024. Size can only be increased, in multiples of 256GB, but not decreased. Tip: A full AOSP Mirror consumes around 1946Gi (1.9Ti) of storage. So 2048Gi of total volume capacity is recommended.
 
 ### 3. Sync Mirror <a name="3-sync-mirror"></a>
 **Path:** `Android Workflows/Environment/Mirror/Sync Mirror`
@@ -113,22 +113,25 @@ These are as follows:
 -   `TERRAFORM_WORKLOADS_SERVICE_ACCOUNT`
     - The Kubernetes service account used for GCP operations.
 
--   `AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME`
+-   `MIRROR_PRESET_FILESTORE_STORAGE_CLASS_NAME`
+    - The preset name for the Kubernetes StorageClass for the Filestore PV.
+
+-   `MIRROR_PRESET_FILESTORE_PVC_NAME`
     - The preset name for the Persistent Volume Claim for the Filestore.
 
--   `AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER`
+-   `MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER`
     - The mount path for the PVC inside the build containers.
 
--   `AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME`
+-   `MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME`
     - The root subdirectory name where mirrors are stored on the volume.
 
--   `AOSP_MIRROR_PRESET_NETWORK_NAME`
+-   `MIRROR_PRESET_NETWORK_NAME`
     - The preset name of the GCP VPC network.
 
--   `AOSP_MIRROR_PRESET_SUBNETWORK_NAME`
+-   `MIRROR_PRESET_SUBNETWORK_NAME`
     - The preset name of the GCP subnetwork.
 
--   `AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME`
+-   `MIRROR_WORKLOADS_ENV_IMAGE_NAME`
     - The name of the Docker image repository in the Artifact Registry.
 
 -   `BUILDKIT_RELEASE_TAG`

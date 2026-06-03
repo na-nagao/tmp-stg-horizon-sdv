@@ -17,7 +17,7 @@ Before creating the ABFS Uploader(s) VM instance, the following dependencies mus
 
 - **Seed Workloads**: Android workload must be seeded to ensure the common parameters are set for the job.
 - **Service Account Creation**: The abfs-server service account must be created in the GCP project.
-- **ABFS License Deployment**: The ABFS license provided by Google must be deployed on the platform using GitHub environment secrets and Terraform workflow.
+- **ABFS License Deployment**: The ABFS license provided by Google must be deployed on the platform via Jenkins.
 - **Docker Infra Image Template Job**:The Docker Infra Image Template job must be run, and the Docker image must be available in the registry.
 - **ABFS Server**: The ABFS server must have been created and started for uploader to seed the server.
 
@@ -37,6 +37,10 @@ The action to perform to create, destroy, stop, start, restart server.
 - `APPLY`: use this to create the instance based on the set of defined parameters.
 - `DESTROY`: use this to delete the instance.
 - `STOP`|`START`|`RESTART`: useful for stopping expensive instances and starting when required.
+
+### `ABFS_LICENSE_B64`
+
+Google provided license file converted to base64. This is mandatory for `ABFS_TERRAFORM_ACTION` `APPLY` actions. Without this license, the ABFS uploaders will not be functional.
 
 ### `UPLOADER_COUNT`
 
@@ -76,21 +80,85 @@ This is the Gerrit manifest file from which the uploader will seed the ABFS serv
 
 ### `UPLOADER_GIT_BRANCH`
 
-This is the Gerrit Android branch/tag the uploader will seed the ABFS server.
+This is the Gerrit Android branch/tag list the uploader will seed to the ABFS server.
 
-Note: you may use a comma separated list to define more than one branch, or apply new branches, simply change the name.
+Format: JSON array of strings.
 
-### `TERRAFORM_GITHUB_URL`
+Examples:
+- Single branch: `["android-15.0.0_r36"]`
+- Multiple branches: `["android-15.0.0_r36","android-16.0.0_r3"]`
+
+Usage notes:
+- Keep branch names explicit in the JSON list.
+- Adding a branch adds it to desired seeding state.
+- Removing a branch/tag from the list removes it from desired seeding state.
+
+### `GOOGLE_ABFS_TERRAFORM_GIT_URL`
 
 The URL for Google Terraform modules for ABFS.
 
-### `TERRAFORM_GITHUB_VERSION`
+### `GOOGLE_ABFS_TERRAFORM_VERSION`
 
-The sha1 for Google Terraform modules for ABFS.
+The git tag or sha1 for Google Terraform modules for ABFS. Default is `v0.10.0`.
 
-### `ABFS_LICENSE_B64`
+### `UPLOADER_MANIFEST_SCHEME`
 
-This is a local override of the ABFS license that was created in GitHub environment secrets and stored as a kubernetes secret. It's purpose is to allow users test license updates locally, prior to updating GitHub, Terraform and ArgoCD to apply the license formally to the project.
+Optional.
+
+Purpose: set the URL scheme used by uploaders when connecting to the manifest server.
+
+Format: string (for example `https` or `http`).
+
+Default: `https`.
+
+### `ABFS_EXTRA_PARAMS`
+
+Optional.
+
+Purpose: pass advanced ABFS runtime flags for uploader instances.
+
+Format: JSON array of strings, e.g. `["--flag=value","--other-flag"]`.
+
+Default: `[]`.
+
+### `ABFS_GERRIT_UPLOADER_EXTRA_PARAMS`
+
+Optional.
+
+Purpose: pass advanced flags specifically to the `gerrit upload-daemon` subcommand.
+
+Format: JSON array of strings.
+
+Default: `[]`.
+
+### `ABFS_ENABLE_GIT_LFS`
+
+Optional.
+
+Purpose: enable Git LFS support in uploader workflows when repositories use large file storage.
+
+Format: boolean (`true` or `false`).
+
+Default: `false`.
+
+### `PRE_START_HOOKS`
+
+Optional.
+
+Purpose: provide custom pre-start scripts for environment-specific setup before uploader runtime starts.
+
+Format: absolute local directory path string.
+
+Default: empty value in Jenkins, which results in Terraform module default `null` (no hooks).
+
+Behavior:
+- The directory is passed to Terraform as `pre_start_hooks`.
+- Hook scripts are copied/mounted by the uploader module and executed during pre-start.
+
+Recommended usage:
+- Keep scripts idempotent and non-interactive.
+- Keep scripts short and deterministic to avoid startup delays.
+- Use executable scripts and a predictable naming convention/order.
 
 ### `ABFS_COS_IMAGE_REF`
 Defines the ABFS Containerized OS images used on server and uploader instances.
@@ -112,11 +180,11 @@ These are as follows:
 -   `CLOUD_REGION`
     - The GCP project region. Important for bucket, registry paths used in pipelines.
 
--   `HORIZON_GITHUB_URL`
-    - The URL to the Horizon SDV GitHub repository.
+-   `HORIZON_SCM_URL`
+    - The URL to the Horizon SDV git repository.
 
--   `HORIZON_GITHUB_BRANCH`
-    - The branch name the job will be configured for from `HORIZON_GITHUB_URL`.
+-   `HORIZON_SCM_BRANCH`
+    - The branch name the job will be configured for from `HORIZON_SCM_URL`.
 
 -   `JENKINS_SERVICE_ACCOUNT`
     - Service account to use for pipelines. Required to ensure correct roles and permissions for GCP resources.

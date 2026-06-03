@@ -16,12 +16,11 @@
 # Container image to be used for containerized platform deployment, comes with
 # required tools pre-installed.
 
-FROM ubuntu:24.04
+FROM --platform=linux/amd64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update these versions as needed
-ENV KUBECTL_VERSION=v1.34.3
 ENV TERRAFORM_VERSION=1.14.2
 ENV DOCKER_VERSION=29.1.3
 ENV GCLOUD_VERSION=549.0.1
@@ -34,12 +33,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     git \
     unzip \
+    jq \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Kubectl
-RUN curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \
-    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \
-    rm kubectl
 
 # Install Terraform 
 RUN wget "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
@@ -65,7 +60,6 @@ COPY deploy.sh /usr/local/bin/deploy.sh
 RUN chmod +x /usr/local/bin/deploy.sh
 
 # Verify Installations
-RUN kubectl version --client && \
-    terraform -version && \
+RUN terraform -version && \
     docker --version && \
     gcloud --version

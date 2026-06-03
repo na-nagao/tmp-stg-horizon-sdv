@@ -85,7 +85,7 @@ get_formatted_elapsed_time() {
 
 # Function to check if the Mirror PVC exists
 # Returns boolean
-check_aosp_mirror_pvc_exists() {
+check_mirror_pvc_exists() {
   local pvc_name=$1
   local namespace=$2
   check_missing_func_args pvc_name namespace
@@ -100,9 +100,60 @@ check_aosp_mirror_pvc_exists() {
   return 0
 }
 
+# Function to get Filestore PVC size
+# Returns integer size in GB; exits with error on failure
+get_mirror_pvc_size() {
+  local pvc_name=$1
+  local namespace=$2
+  check_missing_func_args pvc_name namespace
+
+  log_info "Fetching size of PVC '${pvc_name}' in namespace '${namespace}'..."
+
+  local pvc_size_raw=$(kubectl get pvc "$pvc_name" -n "$namespace" \
+    -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null)
+
+  if [[ -z "$pvc_size_raw" ]]; then
+    log_warning "Could not fetch size for PVC '${pvc_name}' in namespace '${namespace}'. Returning size as 0GB."
+    echo "0"
+    return 0
+  fi
+
+  local pvc_size_gb
+  if [[ "$pvc_size_raw" =~ ^([0-9]+)Ti$ ]]; then
+    # Convert Ti to Gi (1Ti = 1024Gi)
+    pvc_size_gb=$((${BASH_REMATCH[1]} * 1024))
+  elif [[ "$pvc_size_raw" =~ ^([0-9]+)Gi$ ]]; then
+    # Already in Gi
+    pvc_size_gb=${BASH_REMATCH[1]}
+  else
+    log_warning "Unexpected storage format '${pvc_size_raw}'. Returning size as 0GB."
+    echo "0"
+    return 0
+  fi
+  echo "$pvc_size_gb"
+}
+
+# Function to prevent volume downsizing by validating requested size with current size
+# Returns void; exit 1 on failure
+prevent_mirror_pvc_downsizing() {
+  local pvc_name=$1
+  local namespace=$2
+  local requested_size=$3
+  check_missing_func_args pvc_name namespace requested_size
+
+  log_info "Validating requested PVC size '${requested_size}Gi' against current size for PVC '${pvc_name}' in namespace '${namespace}' to prevent downsizing..."
+
+  local current_size=$(get_mirror_pvc_size "$pvc_name" "$namespace")
+  log_info "Current size of PVC '${pvc_name}' in namespace '${namespace}' is '${current_size}Gi'. New requested size is '${requested_size}Gi'."
+
+  if [ "$current_size" != "0" ] && [ "$requested_size" -lt "$current_size" ]; then
+    log_error "ERROR: Cannot reduce PVC from ${current_size}Gi to ${requested_size}Gi. Volume shrinking is not supported and would cause data loss."
+  fi
+}
+
 # Function to get storage info for Mirror PVC
 # Returns void; exit 1 on failure
-get_aosp_mirror_pvc_storage_info() {
+get_mirror_pvc_storage_info() {
   local mirror_pvc_mount_path_in_container=$1
   check_missing_func_args mirror_pvc_mount_path_in_container
 

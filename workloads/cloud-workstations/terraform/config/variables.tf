@@ -39,7 +39,6 @@ variable "sdv_cloud_ws_horizon_code_oss_image_full_path" {
   default     = null
 }
 
-
 // -------USER PROVIDED-------
 
 variable "sdv_cloud_ws_input_config_name" {
@@ -52,7 +51,7 @@ variable "sdv_cloud_ws_configs" {
   type = map(object({
     ws_idle_timeout    = optional(number, 1200)                                       # def: 20 mins
     ws_running_timeout = optional(number, 43200)                                      # def: 12 hours
-    ws_replica_zones   = optional(list(string), ["europe-west1-b", "europe-west1-d"]) # def: two zones within region if empty string
+    ws_replica_zones   = optional(list(string), []) # def: two zones within region if empty string
 
     host_machine_type                 = optional(string, "e2-standard-4")
     host_quickstart_pool_size         = optional(number, 0)  # quickstart ws pool size, def: 0, min: 1 if quickstart enabled

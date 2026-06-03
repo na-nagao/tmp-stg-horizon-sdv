@@ -18,7 +18,7 @@ set -eo pipefail
 
 # Capture the arguments passed to the script
 TF_BACKEND_BUCKET="$1"
-AOSP_MIRROR_TFVARS_JSON_FILE_PATH="$2"
+MIRROR_TFVARS_JSON_FILE_PATH="$2"
 
 # Import shared utils
 # shellcheck disable=SC1091
@@ -27,15 +27,21 @@ source "$(dirname "$0")/../utils/utils.sh"
 
 # ------Initial Checks and Setup------
 
-validate_bucket_and_tfvars_args "$TF_BACKEND_BUCKET" "$AOSP_MIRROR_TFVARS_JSON_FILE_PATH"
+validate_bucket_and_tfvars_args "$TF_BACKEND_BUCKET" "$MIRROR_TFVARS_JSON_FILE_PATH"
+
+# Prevent volume downsizing
+REQUESTED_SIZE=$(jq -r '.sdv_mirror_pvc_capacity_gb' "$MIRROR_TFVARS_JSON_FILE_PATH")
+PVC_NAME=$(jq -r '.sdv_mirror_pvc_name' "$MIRROR_TFVARS_JSON_FILE_PATH")
+PVC_NAMESPACE=$(jq -r '.sdv_mirror_pvc_namespace' "$MIRROR_TFVARS_JSON_FILE_PATH")
+prevent_mirror_pvc_downsizing "$PVC_NAME" "$PVC_NAMESPACE" "$REQUESTED_SIZE"
 
 # Extract Mirror terraform directory path
-AOSP_MIRROR_TF_DIR=$(dirname "${AOSP_MIRROR_TFVARS_JSON_FILE_PATH}")
+MIRROR_TF_DIR=$(dirname "${MIRROR_TFVARS_JSON_FILE_PATH}")
 # Extract Mirror tfvars file name
-AOSP_MIRROR_TFVARS_JSON_FILE=$(basename "$AOSP_MIRROR_TFVARS_JSON_FILE_PATH")
+MIRROR_TFVARS_JSON_FILE=$(basename "$MIRROR_TFVARS_JSON_FILE_PATH")
 
 # Change directory temporarily to Mirror terraform
-pushd "$AOSP_MIRROR_TF_DIR" > /dev/null || log_error "Cannot cd to ${AOSP_MIRROR_TF_DIR}"
+pushd "$MIRROR_TF_DIR" > /dev/null || log_error "Cannot cd to ${MIRROR_TF_DIR}"
 
 
 # ------Terraform workflow begins------
@@ -44,7 +50,7 @@ print_header "MIRROR SETUP: CREATE MIRROR INFRA"
 
 run_terraform_init "${TF_BACKEND_BUCKET}"
 
-run_terraform_apply "${AOSP_MIRROR_TFVARS_JSON_FILE}"
+run_terraform_apply "${MIRROR_TFVARS_JSON_FILE}"
 
 
 # Exit Mirror terraform directory

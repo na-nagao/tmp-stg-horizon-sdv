@@ -19,12 +19,12 @@
 // Function to create a json object for the .tfvars.json file (on the fly)
 def buildTfvarsMap(env, params) {
   return [
-    sdv_aosp_mirror_project_id: "${env.CLOUD_PROJECT}",
-    sdv_aosp_mirror_region: "${env.CLOUD_REGION}",
-    sdv_aosp_mirror_zone: "${env.CLOUD_ZONE}",
-    sdv_aosp_mirror_network_name: "${env.AOSP_MIRROR_PRESET_NETWORK_NAME}",
-    sdv_aosp_mirror_subnetwork_name: "${env.AOSP_MIRROR_PRESET_SUBNETWORK_NAME}",
-    sdv_aosp_mirror_filestore_share_capacity_gb: "${params.MIRROR_VOLUME_CAPACITY_GB}"
+    sdv_mirror_project_id: "${env.CLOUD_PROJECT}",
+    sdv_mirror_region: "${env.CLOUD_REGION}",
+    sdv_mirror_storage_class_name: "${env.MIRROR_PRESET_FILESTORE_STORAGE_CLASS_NAME}",
+    sdv_mirror_pvc_name: "${env.MIRROR_PRESET_FILESTORE_PVC_NAME}",
+    sdv_mirror_pvc_capacity_gb: "${params.MIRROR_VOLUME_CAPACITY_GB}",
+    sdv_mirror_pvc_namespace: "jenkins"
   ]
 }
 
@@ -37,15 +37,15 @@ pipeline {
         apiVersion: v1
         kind: Pod
         metadata:
-          name: jenkins-aosp-mirror-create-mirror-build-pod
+          name: jenkins-mirror-create-mirror-build-pod
           labels:
-            aosp_mirror_build_pod: "true"
+            mirror_build_pod: "true"
         spec:
-          hostname: jenkins-aosp-mirror-create-mirror-build-pod
+          hostname: jenkins-mirror-create-mirror-build-pod
           serviceAccountName: ${TERRAFORM_WORKLOADS_SERVICE_ACCOUNT}
           containers:
-          - name: aosp-mirror-create-mirror-builder-container
-            image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}:${IMAGE_TAG}
+          - name: mirror-create-mirror-builder-container
+            image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${MIRROR_WORKLOADS_ENV_IMAGE_NAME}:${IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             command:
             - sleep
@@ -92,7 +92,7 @@ pipeline {
 
           def scriptPath = "./workloads/android/pipelines/environment/mirror/create_mirror_infra/create_mirror_infra.sh"
           
-          container(name: 'aosp-mirror-create-mirror-builder-container') {
+          container(name: 'mirror-create-mirror-builder-container') {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
               sh """
                 "${scriptPath}" "${tfBackendBucket}" "${tfvarsJsonFilePath}"
