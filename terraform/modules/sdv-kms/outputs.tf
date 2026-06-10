@@ -11,18 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Configuration file containing outputs for the "env" module.
-# Outputs can be used by other modules or resources.
 
-# Outputs (optional, helpful for local debugging)
-output "gerrit_admin_private_key_openssh" {
-  value     = module.gerrit_admin_key.private_key_openssh
-  sensitive = true
-}
-
-output "cuttlefish_private_key_openssh" {
-  value     = module.cuttlefish_key.private_key_openssh
-  sensitive = true
+output "crypto_key_id" {
+  description = "The ID of the crypto key (references persistent KMS infrastructure)"
+  value       = var.enable_kms_encryption && length(data.google_kms_crypto_key.crypto_key) > 0 ? data.google_kms_crypto_key.crypto_key[0].id : ""
 }

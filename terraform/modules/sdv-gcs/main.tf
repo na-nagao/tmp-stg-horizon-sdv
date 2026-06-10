@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "sdv-gcs" module.
-# Create GCS Bucket.
 
 data "google_project" "project" {}
 
 resource "google_storage_bucket" "bucket" {
   name                        = var.bucket_name
   location                    = var.location
+  force_destroy               = true
   uniform_bucket_level_access = true
 }

@@ -95,7 +95,7 @@ the repo credentials, i.e.
       name('ANDROID_CUTTLEFISH_POST_COMMAND')
       defaultValue('')
       description('''<p>Command to run in the <code>ANDROID_CUTTLEFISH_REPO_URL</code> repository</a> to workaround issues etc,  e.g.
-        <ul><li>Cherry pick: <code>git cherry-pick 655de58f</code></li>
+        <ul><li>Cherry pick: <code>git cherry-pick b3e4bd9</code></li>
             <li>Checkout commit: <code>git checkout 655de58f</code></li></ul></p>''')
       trim(true)
     }
@@ -346,10 +346,10 @@ the repo credentials, i.e.
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/cf_instance_template/Jenkinsfile')

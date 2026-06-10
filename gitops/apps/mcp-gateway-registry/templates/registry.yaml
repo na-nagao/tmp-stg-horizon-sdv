@@ -21,11 +21,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}-registry
+      app.kubernetes.io/name: {{ .Values.app.name }}-registry
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}-registry
+        app.kubernetes.io/name: {{ .Values.app.name }}-registry
     spec:
       initContainers:
         - name: seed-servers-data
@@ -122,7 +122,7 @@ metadata:
   namespace: {{ .Values.app.namespace }}
 spec:
   selector:
-    app: {{ .Values.app.name }}-registry
+    app.kubernetes.io/name: {{ .Values.app.name }}-registry
   ports:
     - name: api
       port: {{ .Values.registry.service.ports.api }}

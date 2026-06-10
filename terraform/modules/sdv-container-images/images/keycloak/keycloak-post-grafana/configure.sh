@@ -24,6 +24,7 @@ npm install
 node keycloak.mjs
 SECRET=$(cat client-grafana.json | jq -r ".secret")
 sed -i "s/##SECRET##/${SECRET}/g" ./secret.json
+sed -i "s/##NAMESPACE##/${NAMESPACE_PREFIX}monitoring/g" ./secret.json
 
-curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/monitoring/secrets/grafana-keycloak-secret
-curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/monitoring/secrets -d @secret.json
+curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}monitoring/secrets/grafana-keycloak-secret
+curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}monitoring/secrets -d @secret.json

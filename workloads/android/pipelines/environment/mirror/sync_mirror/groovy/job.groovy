@@ -38,18 +38,18 @@ pipelineJob('Android/Environment/Mirror/Sync Mirror') {
 
     <h4 style="margin-bottom: 10px;">Preset Properties (Non-configurable):</h4>
     <ul>
-      <li>DISK_NAME: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
-      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
-      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
+      <li>DISK_NAME: <i><code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
+      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
+      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
       <li>REGION: <i><code>${CLOUD_REGION}</code></i></li>
-      <li>NETWORK: <i><code>${AOSP_MIRROR_PRESET_NETWORK_NAME}</code></i></li>
-      <li>SUBNETWORK: <i><code>${AOSP_MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
+      <li>NETWORK: <i><code>${MIRROR_PRESET_NETWORK_NAME}</code></i></li>
+      <li>SUBNETWORK: <i><code>${MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
       <li>PROJECT: <i><code>${CLOUD_PROJECT}</code></i></li>
     </ul>
 
     <h4 style="margin-bottom: 10px;">Notes</h4>
     <ul>
-      <li>If the mirror PVC `<i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i>` does NOT exists, this job will fail. Run the 'Mirror > Create Mirror Infra' pipeline prior to this job.</li>
+      <li>If the mirror PVC `<i><code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i>` does NOT exists, this job will fail. Run the 'Mirror > Create Mirror Infra' pipeline prior to this job.</li>
       <li>Multiple mirrors can be created within the same NFS-based volume, but each mirror must have a unique directory name.</li>
       <li>If the mirror with same directory name already exists, executing this job will just update the existing mirror.</li>
       <li>Once the Mirror Manifest URL is set, it cannot be changed without recreating the Mirror.</li>
@@ -92,7 +92,7 @@ pipelineJob('Android/Environment/Mirror/Sync Mirror') {
       defaultValue('')
       description('''The directory name on the Filestore NFS volume where the Mirror is located (or will be created).<br/>
         <b>Example:</b> '<i><code>my-mirror</code></i>'<br/>
-        <b>Note:</b> If you provide '<i><code>my-mirror</code></i>' as value, the absolute container path of the mirror will be '<i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/my-mirror</code></i>', where '<i><code>${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code>.</i>' is the root subdirectory for all mirrors.
+        <b>Note:</b> If you provide '<i><code>my-mirror</code></i>' as value, the absolute container path of the mirror will be '<i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/my-mirror</code></i>', where '<i><code>${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code>.</i>' is the root subdirectory for all mirrors.
       ''')
       trim(true)
     }
@@ -157,10 +157,10 @@ pipelineJob('Android/Environment/Mirror/Sync Mirror') {
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/mirror/sync_mirror/Jenkinsfile')

@@ -18,7 +18,7 @@ set -euo pipefail
 function abfs_override_tf() {
   cat >main_override.tf <<EOL
 module "abfs-server" {
-  source = "git::${TERRAFORM_GITHUB_URL}//modules/server?ref=${TERRAFORM_GITHUB_VERSION}"
+  source = "git::${TERRAFORM_GIT_URL}//modules/server?ref=${TERRAFORM_GIT_VERSION}"
 }
 EOL
 }
@@ -65,10 +65,10 @@ function abfs_server_run() {
 }
 
 function abfs_server_update_schema() {
-  git clone "${TERRAFORM_GITHUB_URL}"
-  REPO_DIRECTORY=$(basename "${TERRAFORM_GITHUB_URL}" .git)
+  git clone "${TERRAFORM_GIT_URL}"
+  REPO_DIRECTORY=$(basename "${TERRAFORM_GIT_URL}" .git)
   cd "${REPO_DIRECTORY}" || exit
-  git checkout "${TERRAFORM_GITHUB_VERSION}"
+  git checkout "${TERRAFORM_GIT_VERSION}"
   if [ -z "$(gcloud --project "${CLOUD_PROJECT}" spanner databases ddl describe --instance abfs abfs)" ]; then
     gcloud --project "${CLOUD_PROJECT}" spanner databases ddl update --instance abfs abfs --ddl-file "${SPANNER_DDL_FILE}"
   else

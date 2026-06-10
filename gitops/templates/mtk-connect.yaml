@@ -15,14 +15,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mtk-connect
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     targetRevision: {{ .Values.spec.source.targetRevision }}
@@ -33,14 +33,147 @@ spec:
             repoURL: {{ .Values.spec.source.repoURL }}
             targetRevision: {{ .Values.spec.source.targetRevision }}
         config:
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
           applications:
             mtkconnect:
               version: {{ .Values.config.applications.mtkconnect.version }}
     path: gitops/apps/mtk-connect
   destination:
     server: https://kubernetes.default.svc
-    namespace: mtk-connect
+    namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated: {}
+---
+# Allow MTK Connect to access MongoDB
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mtk-connect-egress-to-mongodb
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mtk-connect
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: mtk-connect-mongodb
+    ports:
+    - protocol: TCP
+      port: 27017   # MongoDB
+{{- end }}
+---
+# Allow MongoDB to receive traffic from MTK Connect
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mongodb-ingress-from-mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mtk-connect-mongodb
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: mtk-connect
+    ports:
+    - protocol: TCP
+      port: 27017   # MongoDB
+{{- end }}
+---
+# Allow MTK Connect post-jobs to access MTK Connect services
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}mtk-connect-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: mtk-connect
+    ports:
+    - protocol: TCP
+      port: 8081   # MTK Connect Router
+    - protocol: TCP
+      port: 8080   # MTK Connect WAMP Router
+{{- end }}
+---
+# Allow MTK Connect post-jobs internet egress
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-internet
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}mtk-connect-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443    # HTTPS
+    - protocol: TCP
+      port: 80     # HTTP
+{{- end }}
+---
+# Allow MTK Connect post-jobs to access Kubernetes API
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-kube-api
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}mtk-connect-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+    - protocol: TCP
+      port: 6443   # Kubernetes API (alternative port)
+{{- end }}

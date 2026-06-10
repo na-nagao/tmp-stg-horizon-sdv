@@ -48,13 +48,16 @@
 #  - JENKINS_NAMESPACE: k8s namespace. Default: jenkins
 #  - JENKINS_PRIVATE_SSH_KEY_NAME: SSH key name to extract public key from
 #        Private key would be created similar to:
-#        ssh-keygen -t rsa -b 4096 -C "jenkins" -f jenkins_rsa -q -N ""
+#        ssh-keygen -t rsa -b 4096 -C "jenkins" -f jenkins_private_key -q -N ""
+#        Ensure new line:
+#        echo "" >> jenkins_private_key
 #        -C: comment 'jenkins'
 #        -N: no passphrase
+#        This should produce an OpenSSH private and public key.
 #        Then added to k8s secrets and defined in Jenkins credentials.
 #        Default: jenkins-cuttlefish-vm-ssh-private-key
 #  - JENKINS_SSH_PUB_KEY_FILE: Public key file name.
-#        Default: jenkins_rsa.pub
+#        Default: jenkins_private_key.pub
 #  - MACHINE_TYPE: The machine type to create instance templates for.
 #       If undefined, the CUSTOM_ parameters must be.
 #  - MAX_RUN_DURATION: Limits how long this VM instance can run. Default: 10h
@@ -131,7 +134,7 @@ CUTTLEFISH_POST_COMMAND=${CUTTLEFISH_POST_COMMAND:-}
 JAVA_VERSION=${JAVA_VERSION:-openjdk-17-jdk-headless}
 JENKINS_NAMESPACE=${JENKINS_NAMESPACE:-jenkins}
 JENKINS_PRIVATE_SSH_KEY_NAME=${JENKINS_PRIVATE_SSH_KEY_NAME:-jenkins-cuttlefish-vm-ssh-private-key}
-JENKINS_SSH_PUB_KEY_FILE=${JENKINS_SSH_PUB_KEY_FILE:-jenkins_rsa.pub}
+JENKINS_SSH_PUB_KEY_FILE=${JENKINS_SSH_PUB_KEY_FILE:-jenkins_private_key.pub}
 MACHINE_TYPE=${MACHINE_TYPE:-}
 MACHINE_TYPE=$(echo "${MACHINE_TYPE}" | xargs)
 MAX_RUN_DURATION=${MAX_RUN_DURATION:-10h}
@@ -376,22 +379,56 @@ function create_vm_instance() {
     echo -e "${GREEN}VM Instance ${vm_base_instance} created${NC}"
 }
 
+# https://cloud.google.com/compute/docs/troubleshooting/troubleshoot-os-login#invalid_argument
+# Clean old SSH keys to avoid OS Login issues.
+function cleanup_os_login() {
+    echo -e "${GREEN}Cleanup old SSH keys${NC}"
+
+    FINGERPRINTS=$(gcloud compute os-login ssh-keys list --format="value(value.fingerprint)")
+    if [ -z "${FINGERPRINTS}" ]; then
+        echo -e "${YELLOW}No SSH keys found to remove.${NC}"
+    else
+        # Use a while loop to safely handle potential whitespace
+        echo "${FINGERPRINTS}" | while read -r k; do
+            [ -z "$k" ] && continue
+            echo -e "${GREEN}Removing key fingerprint:${NC} ${k}..."
+
+            # Retry logic for concurrency issues
+            for i in {1..3}; do
+                ERROR_MSG=$(gcloud compute os-login ssh-keys remove --key "${k}" --quiet 2>&1)
+                RESULT=$?
+                if [ $RESULT -eq 0 ]; then
+                    break
+                elif [[ "${ERROR_MSG}" == *"ABORTED"* ]]; then
+                    echo -e "${YELLOW}Concurrency error, retrying in 3s... (Attempt $i)${NC}"
+                    sleep 3
+                else
+                    echo -e "${RED}Failed to remove key: ${ERROR_MSG}${NC}"
+                    break # It's a real error
+                fi
+            done
+            # Avoid OS Login API rate limits
+            sleep 3
+        done
+        echo -e "${GREEN}Cleanup complete.${NC}"
+    fi
+
+    echo -e "${GREEN}Create CF directory for scripts${NC}"
+}
+
 # Install host tools on the base VM instance.
 # Host must be rebooted when installed (use stop/start to achieve it)
 function install_host_tools() {
     echo_formatted "3. Populate Cuttlefish Host tools/packages on VM instance"
 
-    # https://cloud.google.com/compute/docs/troubleshooting/troubleshoot-os-login#invalid_argument
-    # Clean old SSH keys
-    echo -e "${GREEN}Remove old SSH keys${NC}"
-    for k in $(gcloud compute os-login ssh-keys list --format="table[no-heading](value.fingerprint)"); do
-        gcloud compute os-login ssh-keys remove --key "${k}" || true
-        sleep 1m
-    done
+    cleanup_os_login
 
-    gcloud compute ssh --quiet --zone="${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" --command="" --ssh-flag="-T" >/dev/null 2>&1 || true
-    echo -e "${GREEN}Create CF directory for scripts${NC}"
-    gcloud compute ssh --zone "${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" \
+    gcloud compute ssh "${vm_base_instance}" \
+        --quiet \
+        --tunnel-through-iap \
+        --project "${PROJECT}" \
+        --zone="${ZONE}" \
+        --ssh-flag="-T" \
         --command='mkdir -p cf' >/dev/null &
     progress_spinner "$!"
 
@@ -402,37 +439,53 @@ function install_host_tools() {
 
     # Keep debug so we can see what's happening.
     echo -e "${GREEN}Installing CF host ....${NC}"
-    if ! gcloud compute ssh --zone "${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" \
+    if ! gcloud compute ssh "${vm_base_instance}" \
+        --quiet \
+        --tunnel-through-iap \
+        --project "${PROJECT}" \
+        --zone="${ZONE}" \
+        --ssh-flag="-T" \
         --command="CUTTLEFISH_REVISION=${CUTTLEFISH_REVISION} \
-        ANDROID_CUTTLEFISH_PREBUILT=${ANDROID_CUTTLEFISH_PREBUILT} \
-        ARCHITECTURE=${ARCHITECTURE} \
-        CURL_UPDATE_COMMAND=\"${CURL_UPDATE_COMMAND}\" \
-        CTS_ANDROID_16_URL=${CTS_ANDROID_16_URL} \
-        CTS_ANDROID_15_URL=${CTS_ANDROID_15_URL} \
-        CTS_ANDROID_14_URL=${CTS_ANDROID_14_URL} \
-        CUTTLEFISH_POST_COMMAND=\"${CUTTLEFISH_POST_COMMAND}\" \
-        CUTTLEFISH_URL=${CUTTLEFISH_URL} \
-        CUTTLEFISH_REPO_URL=${CUTTLEFISH_REPO_URL} \
-        JAVA_VERSION=${JAVA_VERSION} \
-        NODEJS_VERSION=${NODEJS_VERSION} \
-        OS_VERSION=${OS_VERSION} \
-        REPO_USERNAME=${REPO_USERNAME} \
-        REPO_PASSWORD=${REPO_PASSWORD} \
-        WORKSPACE=\"${WORKSPACE}\" \
-        ./cf/cf_host_initialise.sh; exit \$?"; then
+            ANDROID_CUTTLEFISH_PREBUILT=${ANDROID_CUTTLEFISH_PREBUILT} \
+            ARCHITECTURE=${ARCHITECTURE} \
+            CURL_UPDATE_COMMAND=\"${CURL_UPDATE_COMMAND}\" \
+            CTS_ANDROID_16_URL=${CTS_ANDROID_16_URL} \
+            CTS_ANDROID_15_URL=${CTS_ANDROID_15_URL} \
+            CTS_ANDROID_14_URL=${CTS_ANDROID_14_URL} \
+            CUTTLEFISH_POST_COMMAND=\"${CUTTLEFISH_POST_COMMAND}\" \
+            CUTTLEFISH_URL=${CUTTLEFISH_URL} \
+            CUTTLEFISH_REPO_URL=${CUTTLEFISH_REPO_URL} \
+            JAVA_VERSION=${JAVA_VERSION} \
+            NODEJS_VERSION=${NODEJS_VERSION} \
+            OS_VERSION=${OS_VERSION} \
+            REPO_USERNAME=${REPO_USERNAME} \
+            REPO_PASSWORD=${REPO_PASSWORD} \
+            WORKSPACE=\"${WORKSPACE}\" \
+            ./cf/cf_host_initialise.sh; exit \$?"; then
         echo -e "${RED}Installing CF host failed.${NC}"
         delete_instances
         exit 1
     fi
     echo -e "${GREEN}Installing CF host completed.${NC}"
 
-    gcloud compute ssh --quiet --zone="${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" --command="sudo ufw allow 22 || true" --ssh-flag="-T"  >/dev/null 2>&1|| true
+    gcloud compute ssh "${vm_base_instance}" \
+        --quiet \
+        --tunnel-through-iap \
+        --project "${PROJECT}" \
+        --zone="${ZONE}" \
+        --ssh-flag="-T" \
+        --command="sudo ufw allow 22 || true"  >/dev/null 2>&1|| true
     echo -e "${GREEN}Copying ${CUTTLEFISH_LATEST_SHA1_FILENAME}${NC}"
     gcloud compute scp "${vm_base_instance}":~/"${CUTTLEFISH_LATEST_SHA1_FILENAME}" "${WORKSPACE}"/ --zone="${ZONE}" \
          --tunnel-through-iap --project "${PROJECT}" >/dev/null 2>&1 || true
 
     echo -e "${GREEN}Cleanup CF host files.${NC}"
-    gcloud compute ssh --zone "${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" \
+    gcloud compute ssh "${vm_base_instance}" \
+        --quiet \
+        --tunnel-through-iap \
+        --project "${PROJECT}" \
+        --zone="${ZONE}" \
+        --ssh-flag="-T" \
         --command="rm -rf ~/cf && sudo ufw allow 22 || true" >/dev/null 2>&1 || true
 
     # Alternative to reboot instance. Must be rebooted/restarted to ensure
@@ -452,27 +505,27 @@ function install_host_tools() {
 }
 
 # Add SSH key for Jenkins.
-# - Ensure the private key is added to Jenkins credentials that are
-#   used for GCE plugin and SSH for Cuttlefish template instances.
 function create_ssh_key() {
     echo_formatted "4. Create jenkins SSH Key on VM instance"
 
-    # Jenkins will extract from credentials and if not present, extract
-    # from k8s secrets. Useful for running locally outside of Jenkins.
+    # If all we do is update the authroized_keys, make sure we flush all fingerprints!
+    [ "${UPDATE_SSH_AUTHORIZED_KEYS}" = true ] && cleanup_os_login
+
+    # Extract from k8s secrets. Otherwise you may already have a public key, so
+    # can bypass.
     if [ ! -f "${JENKINS_SSH_PUB_KEY_FILE}" ]; then
         echo -e "${GREEN}Extracting public key ${JENKINS_SSH_PUB_KEY_FILE}${NC}"
         # Extract the public key from the private key.
         # - Use template arg to extract the private key and decode the base64.
-        # - Append new line and correct file permissions so ssh-keygen
+        # - Append new line, if missing and correct file permissions so ssh-keygen
         #   can read and extract the public key.
         # shellcheck disable=SC1083
         kubectl get secrets -n "${JENKINS_NAMESPACE}" "${JENKINS_PRIVATE_SSH_KEY_NAME}" \
-            --template={{.data.privateKey}} | base64 -d | \
-            awk '1; END {print ""}' > jenkins_rsa || true
-        chmod 400 jenkins_rsa || true
+            --template={{.data.privateKey}} | base64 -d > jenkins_private_key
+        chmod 600 jenkins_private_key
 
-        ssh-keygen -y -f jenkins_rsa > "${JENKINS_SSH_PUB_KEY_FILE}" || true
-        rm -f jenkins_rsa || true
+        ssh-keygen -y -f jenkins_private_key > "${JENKINS_SSH_PUB_KEY_FILE}" || true
+        rm -f jenkins_private_key || true
 
         if [ ! -f "${JENKINS_SSH_PUB_KEY_FILE}" ]; then
             echo -e "${RED}ERROR: Failed to extract public key from private key${NC}"
@@ -484,20 +537,18 @@ function create_ssh_key() {
 
     echo -e "${GREEN}SSH Public key:${NC}"
     cat "${JENKINS_SSH_PUB_KEY_FILE}"
-
-    gcloud compute ssh --quiet --zone="${ZONE}" "${vm_base_instance}" --tunnel-through-iap --project "${PROJECT}" --command="" --ssh-flag="-T" || true
-    gcloud compute ssh --zone "${ZONE}" "${vm_base_instance}" --tunnel-through-iap \
+    cat "${JENKINS_SSH_PUB_KEY_FILE}" | gcloud compute ssh "${vm_base_instance}" \
+        --quiet \
+        --tunnel-through-iap \
         --project "${PROJECT}" \
-        --command='sudo rm -rf /home/jenkins/.ssh && sudo mkdir /home/jenkins/.ssh && sudo chmod 700 /home/jenkins/.ssh && sudo chown jenkins:jenkins /home/jenkins/.ssh' >/dev/null &
-    progress_spinner "$!"
-
-    gcloud compute scp "${JENKINS_SSH_PUB_KEY_FILE}" "${vm_base_instance}":/tmp/authorized_keys \
-        --zone="${ZONE}" >/dev/null --tunnel-through-iap --project "${PROJECT}" &
-    progress_spinner "$!"
-
-    gcloud compute ssh --zone "${ZONE}" "${vm_base_instance}" --tunnel-through-iap \
-        --project "${PROJECT}" \
-        --command='sudo mv /tmp/authorized_keys /home/jenkins/.ssh/authorized_keys && sudo chown -R jenkins:jenkins /home/jenkins/.ssh' >/dev/null &
+        --zone="${ZONE}" \
+        --ssh-flag="-T" \
+        --command="sudo mkdir -p /home/jenkins/.ssh && \
+            sudo tee -a /home/jenkins/.ssh/authorized_keys > /dev/null && \
+            sudo chmod 700 /home/jenkins/.ssh && \
+            sudo chmod 600 /home/jenkins/.ssh/authorized_keys && \
+            sudo chown -R jenkins:jenkins /home/jenkins/.ssh && \
+            sync" >/dev/null &
     progress_spinner "$!"
 
     # Clean up
@@ -620,6 +671,7 @@ function delete_instances() {
 
 # Main: run all or allow the user to select which steps to run.
 function main() {
+    echo -e "${GREEN}HOST IP: ${NC} $(hostname -I || true)"
     echo_environment
     check_environment
     case "$1" in

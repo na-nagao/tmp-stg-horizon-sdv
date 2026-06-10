@@ -11,33 +11,60 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "sdv-certificate-manager" module.
-# Create Google certificate manager certificate required for DNS Authz. It is
-# required to update the CNAME record within 30 minutes from the certificate
-# creation.
 
 data "google_project" "project" {}
 
+locals {
+  # Certificate map hostname matching is entry-based, not SAN-based.
+  # Create both apex and wildcard entries per environment domain.
+  certificate_map_host_entries = merge(
+    {
+      for k, d in var.domains : "${k}-apex" => {
+        name       = "${var.name}-entry-${k}"
+        domain_key = k
+        hostname   = d
+      }
+    },
+    {
+      for k, d in var.domains : "${k}-wildcard" => {
+        name       = "${var.name}-entry-${k}-wildcard"
+        domain_key = k
+        hostname   = "*.${d}"
+      }
+    }
+  )
+}
+
 resource "google_certificate_manager_certificate" "horizon_sdv_cert" {
-  project = data.google_project.project.project_id
-  name    = var.name
-  scope   = "DEFAULT"
+  for_each = var.domains
+  project  = data.google_project.project.project_id
+
+  name  = "${var.name}-${each.key}"
+  scope = "DEFAULT"
+
   managed {
     domains = [
-      google_certificate_manager_dns_authorization.instance.domain,
-      "*.${google_certificate_manager_dns_authorization.instance.domain}"
+      google_certificate_manager_dns_authorization.instance[each.key].domain,
+      "*.${google_certificate_manager_dns_authorization.instance[each.key].domain}"
     ]
     dns_authorizations = [
-      google_certificate_manager_dns_authorization.instance.id
+      google_certificate_manager_dns_authorization.instance[each.key].id
     ]
   }
 }
 
+# TAA-1571: State migration block for 3.0.0 -> 3.1.0 upgrade.
+# Remove after all environments have been upgraded.
+moved {
+  from = google_certificate_manager_dns_authorization.instance
+  to   = google_certificate_manager_dns_authorization.instance["main"]
+}
+
 resource "google_certificate_manager_dns_authorization" "instance" {
-  name   = "horizon-sdv-dns-auth"
-  domain = var.domain
+  for_each = var.domains
+
+  name   = each.key == "main" ? "${var.name}-dns-auth" : "${var.name}-dns-auth-${each.key}"
+  domain = each.value
 }
 
 resource "google_certificate_manager_certificate_map" "horizon_sdv_map" {
@@ -47,10 +74,10 @@ resource "google_certificate_manager_certificate_map" "horizon_sdv_map" {
 }
 
 resource "google_certificate_manager_certificate_map_entry" "horizon_sdv_map_entry" {
-  name         = "horizon-sdv-map-entry"
-  description  = "Certificate Manager Map Entry for Horizon SDV"
-  map          = google_certificate_manager_certificate_map.horizon_sdv_map.name
-  certificates = [google_certificate_manager_certificate.horizon_sdv_cert.id]
-  matcher      = "PRIMARY"
-}
+  for_each = local.certificate_map_host_entries
 
+  name         = each.value.name
+  map          = google_certificate_manager_certificate_map.horizon_sdv_map.name
+  certificates = [google_certificate_manager_certificate.horizon_sdv_cert[each.value.domain_key].id]
+  hostname     = each.value.hostname
+}

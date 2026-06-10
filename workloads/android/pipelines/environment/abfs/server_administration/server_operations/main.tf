@@ -59,6 +59,20 @@ resource "google_compute_firewall" "abfs-server-allow-all-from-internal" {
   target_service_accounts = ["abfs-server@${var.project_id}.iam.gserviceaccount.com"]
 }
 
+resource "google_compute_firewall" "abfs-server-allow-iap-ssh" {
+  name     = "abfs-server-allow-iap-ssh"
+  network  = var.sdv_network
+  priority = 900
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges           = ["35.235.240.0/20"]
+  target_service_accounts = ["abfs-server@${var.project_id}.iam.gserviceaccount.com"]
+}
+
 resource "google_logging_project_bucket_config" "basic" {
   project        = var.project_id
   location       = "global"

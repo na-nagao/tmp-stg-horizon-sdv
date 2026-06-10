@@ -14,6 +14,7 @@
 
 config:
   name: Horizon SDV
+  enableNetworkPolicies: true
   applications:
     keycloak:
       version: "7.1.4"

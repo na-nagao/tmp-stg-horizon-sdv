@@ -15,17 +15,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-frontend
-  namespace: monitoring
+  name: {{ .Values.config.namespacePrefix }}prometheus-frontend
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus-frontend
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}prometheus
   template:
     metadata:
       labels:
-        app: prometheus-frontend
+        app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}prometheus
     spec:
       serviceAccountName: monitoring-sa
       containers:
@@ -53,12 +53,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: prometheus-frontend
-  namespace: monitoring
+  name: {{ .Values.config.namespacePrefix }}prometheus-frontend
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
 spec:
   clusterIP: None
   selector:
-    app: prometheus-frontend
+    app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}prometheus
   ports:
   - name: web
     port: {{ .Values.prometheus.config.port }}

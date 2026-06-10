@@ -17,6 +17,7 @@ data "google_compute_network" "sdv_network_data" {
   name = var.sdv_cloud_ws_network_name
   project = var.sdv_cloud_ws_project_id
 }
+
 // Get subnetwork details of existing horizon-sdv subnetwork
 data "google_compute_subnetwork" "sdv_cloud_ws_subnetwork_data" {
   name    = var.sdv_cloud_ws_subnetwork_name

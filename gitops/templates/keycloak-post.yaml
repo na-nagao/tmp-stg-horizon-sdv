@@ -15,8 +15,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keycloak-post-job
-  namespace: keycloak
+  name: {{ .Values.config.namespacePrefix }}keycloak-post-job
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/hook: Sync
@@ -29,7 +29,7 @@ spec:
         - name: keycloak-post-sync-job
           env:
             - name: PLATFORM_URL
-              value: "http://keycloak-keycloakx-http:8080"
+              value: "http://{{ .Values.config.namespacePrefix }}keycloak-keycloakx-http:8080"
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD

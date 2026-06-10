@@ -15,14 +15,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: monitoring-tools
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}monitoring-tools
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     path: gitops/apps/monitoring-tools
@@ -31,15 +31,41 @@ spec:
       values: |
         config:
           projectID: {{ .Values.config.projectID }}
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
+          isSubEnvironment: {{ .Values.config.isSubEnvironment }}
         spec:
           source:
             repoURL: {{ .Values.spec.source.repoURL }}
             targetRevision: {{ .Values.spec.source.targetRevision }}
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: monitoring
+    namespace: {{ .Values.config.namespacePrefix }}monitoring
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-
+---
+# Allow Prometheus to be scraped by Grafana
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-ingress-from-grafana
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: grafana
+    ports:
+    - protocol: TCP
+      port: 9090   # Prometheus API
+{{- end }}

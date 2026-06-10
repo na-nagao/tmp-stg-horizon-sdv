@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,11 +22,17 @@ variable "dns_name" {
   type        = string
 }
 
-variable "dns_auth_record" {
+variable "dns_auth_records" {
   description = "The CNAME record object (containing: name, type and data) for authz."
-  type = object({
+  type = list(object({
     name = string
     type = string
     data = string
-  })
+  }))
+}
+
+variable "dnssec_enabled" {
+  description = "Enable DNSSEC to protect against DNS spoofing and cache poisoning attacks. Requires domain ownership verification."
+  type        = bool
+  default     = true
 }

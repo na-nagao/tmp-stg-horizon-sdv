@@ -15,17 +15,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: headlamp-oauth2-proxy
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   ignoreDifferences:
     - group: ""
       kind: Secret
-      name: headlamp-oauth2-proxy
-      namespace: headlamp
+      name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
+      namespace: {{ .Values.config.namespacePrefix }}headlamp
       jsonPointers:
         - /data
   source:
@@ -49,7 +49,7 @@ spec:
           cookie-secure: "true"
           cookie-samesite: "lax"
           scope: "openid profile email groups"
-          upstream: "http://headlamp-token-injector.headlamp.svc.cluster.local:8080/"
+          upstream: "http://{{ .Values.config.namespacePrefix }}headlamp-token-injector.{{ .Values.config.namespacePrefix }}headlamp.svc.cluster.local:8080/"
           http-address: "0.0.0.0:4180"
           pass-user-headers: "true"
           pass-authorization-header: "false"
@@ -68,12 +68,12 @@ spec:
           - name: OAUTH2_PROXY_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
-                name: headlamp-oauth2-proxy
+                name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
                 key: client-secret
           - name: OAUTH2_PROXY_COOKIE_SECRET
             valueFrom:
               secretKeyRef:
-                name: headlamp-oauth2-proxy
+                name: {{ .Values.config.namespacePrefix }}headlamp-oauth2-proxy
                 key: cookie-secret
 
         service:
@@ -84,8 +84,91 @@ spec:
           portName: http
   destination:
     server: https://kubernetes.default.svc
-    namespace: headlamp
+    namespace: {{ .Values.config.namespacePrefix }}headlamp
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated: {}
+---
+# Allow OAuth2 Proxy to access Keycloak
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-headlamp-oauth2-proxy-egress-to-keycloak
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}keycloak
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloakx
+    ports:
+    - protocol: TCP
+      port: 8080   # OAuth/OIDC
+
+{{- end }}
+---
+# Allow OAuth2 Proxy to access Token Injector
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-oauth2-proxy-egress-to-token-injector
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}headlamp-token-injector
+    ports:
+    - protocol: TCP
+      port: 8080   # Token injector
+{{- end }}
+---
+# Allow OAuth2 Proxy internet egress (for OIDC Discovery)
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-headlamp-oauth2-proxy-egress-to-internet
+  namespace: {{ .Values.config.namespacePrefix }}headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443    # HTTPS
+    - protocol: TCP
+      port: 80     # HTTP
+
+{{- end }}

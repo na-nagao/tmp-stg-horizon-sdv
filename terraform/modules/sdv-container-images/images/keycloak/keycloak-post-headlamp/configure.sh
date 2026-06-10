@@ -104,8 +104,8 @@ fi
 debug_log "Cookie secret generated (value redacted)"
 
 # Check secret exists before patch
-TARGET_NS="headlamp"
-TARGET_SECRET="headlamp-oauth2-proxy"
+TARGET_NS="${NAMESPACE_PREFIX}headlamp"
+TARGET_SECRET="${NAMESPACE_PREFIX}headlamp-oauth2-proxy"
 debug_log "Ensuring target secret ${TARGET_SECRET} exists in ${TARGET_NS}"
 if ! kubectl -n "${TARGET_NS}" get secret "${TARGET_SECRET}" >/dev/null 2>&1; then
   echo "[ERROR] target secret ${TARGET_SECRET} not found in namespace ${TARGET_NS}" >&2
@@ -138,9 +138,9 @@ fi
 debug_log "Secret verification OK"
 
 # Rollout restart
-debug_log "Restarting deployment/headlamp-oauth2-proxy -n ${TARGET_NS}"
-if ! kubectl rollout restart deployment/headlamp-oauth2-proxy -n "${TARGET_NS}" >/dev/null 2>&1; then
-  echo "[ERROR] Failed to restart deployment/headlamp-oauth2-proxy in ${TARGET_NS}" >&2
+debug_log "Restarting deployment/${NAMESPACE_PREFIX}headlamp-oauth2-proxy -n ${TARGET_NS}"
+if ! kubectl rollout restart deployment/${NAMESPACE_PREFIX}headlamp-oauth2-proxy -n "${TARGET_NS}" >/dev/null 2>&1; then
+  echo "[ERROR] Failed to restart deployment/${NAMESPACE_PREFIX}headlamp-oauth2-proxy in ${TARGET_NS}" >&2
   exit 11
 fi
 debug_log "Deployment rollout restart requested"

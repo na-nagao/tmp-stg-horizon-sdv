@@ -13,5 +13,5 @@
 # limitations under the License.
 
 ARG NGINX_VERSION
-FROM nginx:${NGINX_VERSION}
-COPY html /usr/share/nginx/html
+FROM --platform=linux/amd64 nginx:${NGINX_VERSION}
+COPY --chown=nginx:nginx html /usr/share/nginx/html

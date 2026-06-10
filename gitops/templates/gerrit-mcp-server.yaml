@@ -15,14 +15,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gerrit-mcp-server
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "8"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     path: gitops/apps/gerrit-mcp-server
@@ -30,6 +30,7 @@ spec:
     helm:
       values: |
         config:
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
           gitops:
             gerritMcpServer: {{ .Values.config.apps.gerritMcpServer}}
             #domain: {{ .Values.config.domain }}
@@ -40,8 +41,60 @@ spec:
             targetRevision: {{ .Values.spec.source.targetRevision }}
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: gerrit
+    namespace: {{ .Values.config.namespacePrefix }}gerrit
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+---
+# Allow Gerrit MCP Server ingress from MCP Gateway Registry
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-mcp-server-ingress-from-mcp-gateway
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
+    ports:
+    - protocol: TCP
+      port: 6322   # Gerrit MCP Server
+
+{{- end }}
+---
+# Allow Gerrit MCP Server egress to Gerrit
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-mcp-server-egress-to-gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: gerrit
+    ports:
+    - protocol: TCP
+      port: 8080   # Gerrit HTTP API
+{{- end }}
+

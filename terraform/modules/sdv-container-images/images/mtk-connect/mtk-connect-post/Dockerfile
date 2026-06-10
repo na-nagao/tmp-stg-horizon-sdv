@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:12.9
+FROM --platform=linux/amd64 debian:12.13
 ADD configure.sh /root
 ADD secret-jenkins.json /root
 ADD secret-mtk-connect.json /root
-RUN apt update -y && apt install vim curl skopeo jq -y
+# Add security repository and upgrade all packages to fix CVEs
+RUN echo "deb http://security.debian.org/debian-security bookworm-security main" > /etc/apt/sources.list.d/security.list && \
+    apt update -y && apt upgrade -y && \
+    apt install vim curl skopeo jq -y && \
+    apt clean && rm -rf /var/lib/apt/lists/*
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 RUN mv /kubectl /usr/local/bin && chmod +x /usr/local/bin/kubectl && chmod +x /root/configure.sh
 CMD ["/bin/bash", "-c", "/root/configure.sh"]

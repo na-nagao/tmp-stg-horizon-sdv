@@ -15,21 +15,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: dynpvc-releaser
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}dynpvc-releaser
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     chart: reclaimable-pv-releaser
     repoURL: https://plumber-cd.github.io/helm/
     targetRevision: 0.1.1
   destination:
     server: https://kubernetes.default.svc
-    namespace: dynpvc
+    namespace: {{ .Values.config.namespacePrefix }}dynpvc
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

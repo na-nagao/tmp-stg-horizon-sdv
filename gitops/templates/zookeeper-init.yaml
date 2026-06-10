@@ -15,7 +15,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: zookeeper-rwo
+  name: {{ .Values.config.namespacePrefix }}zookeeper-rwo
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 provisioner: pd.csi.storage.gke.io
@@ -28,8 +28,8 @@ parameters:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: zookeeper-data
-  namespace: zookeeper
+  name: {{ .Values.config.namespacePrefix }}zookeeper-data
+  namespace: {{ .Values.config.namespacePrefix }}zookeeper
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -38,5 +38,5 @@ spec:
   resources:
     requests:
       storage: 8Gi
-  storageClassName: zookeeper-rwo
+  storageClassName: {{ .Values.config.namespacePrefix }}zookeeper-rwo
   volumeMode: Filesystem

@@ -201,7 +201,7 @@ Raspberry Vanilla updates: support for android-15.0.0_r36 and android-14.0.0_r30
 - **Docker Image Template:** packages upgrades for Android 15 RPi builds.
 
 ##### Action Required:
-To ensure a smooth transition it is advisable users update their build image and cuttflefish instance templates.
+To ensure a smooth transition it is advisable users update their build image and cuttlefish instance templates.
 
 ###### Docker Image Template update:
 In Jenkins select Android Workflows → Environment → Docker Image Template:

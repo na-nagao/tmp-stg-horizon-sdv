@@ -42,3 +42,17 @@ module "abfs-uploaders" {
   abfs_gerrit_uploader_allow_stopping_for_update = true
   abfs_uploader_cos_image_ref                    = var.abfs_uploader_cos_image_ref
 }
+
+resource "google_compute_firewall" "abfs-uploaders-allow-iap-ssh" {
+  name     = "abfs-uploaders-allow-iap-ssh"
+  network  = var.sdv_network
+  priority = 900
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges           = ["35.235.240.0/20"]
+  target_service_accounts = ["abfs-server@${var.project_id}.iam.gserviceaccount.com"]
+}

@@ -2134,7 +2134,7 @@ If users are interested in how these machine types are configured, then refer to
 **Android Build Jobs: `c2d-highcpu-112`**
 - `./terraform/env/main.tf`: `sdv_build_node_pool_machine_type   = "c2d-highcpu-112"`
 - `./terraform/modules/base/variables.tf`: ` default     = "c2d-highcpu-112"`
-  - Requires GitHub actions to run the Terraform workflow to apply any changes.
+  - Re-run the deployment script to apply any Terraform changes.
 - Jenkinsfile `kubernetesPodTemplate` POD configuration:
   - Refer to `resources`, `limits` and `requests` in the Jenkinsfile. These are optimised to the Jenkins pipeline builds and
     need for additional resources for the Jenkins agent etc. You may adjust to your machine limits.
@@ -2145,7 +2145,7 @@ If users are interested in how these machine types are configured, then refer to
 **OpenBSW Build Jobs: `n1-standard-8`**
 - `./terraform/env/main.tf`: `sdv_openbsw_build_node_pool_machine_type   = "n1-standard-8"`
 - `./terraform/modules/base/variables.tf`: ` default     = "n1-standard-8"`
-  - Requires GitHub actions to run the Terraform workflow to apply any changes.
+  - Re-run the deployment script to apply any Terraform changes.
 
 **Test Jobs: `n2-standard-32`**
 - This is part of the `Android Workflows` → `Environment` → `CF Instance Template` configuration.

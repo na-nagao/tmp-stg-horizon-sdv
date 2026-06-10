@@ -183,31 +183,16 @@ pipeline {
 
       steps {
         container(name: 'builder') {
-          withCredentials([sshUserPrivateKey(credentialsId: "jenkins-cuttlefish-vm-ssh-private-key", keyFileVariable:
-'CUTTLEFISH_SSH_PRIVATE_KEY')]) {
-            sh '''
-              # Extract public key from credentials.
-              eval `ssh-agent -s` || true
-              if ssh-add "${CUTTLEFISH_SSH_PRIVATE_KEY}"; then
-                if ssh-add -L > "${WORKSPACE}"/jenkins_rsa.pub ; then
-                  echo "SSH key appears valid"
-                else
-                  echo "SSH key is invalid"
-                  rm -f "${WORKSPACE}"/jenkins_rsa.pub || true
-                fi
-              fi
-
-              CUTTLEFISH_REVISION="${ANDROID_CUTTLEFISH_REVISION}" \
-              CUTTLEFISH_POST_COMMAND="${ANDROID_CUTTLEFISH_POST_COMMAND}" \
-              VM_INSTANCE_CREATE="${VM_INSTANCE_CREATE}" \
-              JENKINS_SSH_PUB_KEY_FILE="${WORKSPACE}"/jenkins_rsa.pub \
-              PROJECT=${CLOUD_PROJECT} \
-              REGION=${REGION:-${CLOUD_REGION}} \
-              SUBNET=${SUBNET} \
-              ZONE=${ZONE:-${CLOUD_ZONE}} \
-             ./workloads/android/pipelines/environment/cf_instance_template/cf_create_instance_template.sh 4
-            '''
-          }
+          sh '''
+            CUTTLEFISH_REVISION="${ANDROID_CUTTLEFISH_REVISION}" \
+            CUTTLEFISH_POST_COMMAND="${ANDROID_CUTTLEFISH_POST_COMMAND}" \
+            VM_INSTANCE_CREATE="${VM_INSTANCE_CREATE}" \
+            PROJECT=${CLOUD_PROJECT} \
+            REGION=${REGION:-${CLOUD_REGION}} \
+            SUBNET=${SUBNET} \
+            ZONE=${ZONE:-${CLOUD_ZONE}} \
+            ./workloads/android/pipelines/environment/cf_instance_template/cf_create_instance_template.sh 4
+          '''
         }
       }
     }

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if not .Values.config.isSubEnvironment }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -24,3 +25,4 @@ volumeBindingMode: Immediate
 reclaimPolicy: Delete
 parameters:
   type: pd-standard
+{{- end }}

@@ -23,7 +23,7 @@ pipelineJob('Android/Environment/Mirror/Docker Image Template') {
 
     <h4 style="margin-bottom: 10px;">Pushing Changes to the Registry</h4>
     <p>To push changes to the registry, set the parameter <code>NO_PUSH=false</code>.</p>
-    <p>The image will be pushed to <code>${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}</code></p>
+    <p>The image will be pushed to <code>${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${MIRROR_WORKLOADS_ENV_IMAGE_NAME}</code></p>
 
     <h4 style="margin-bottom: 10px;">Verifying Changes</h4>
     <p>When working with new Dockerfile updates, it's recommended to set <code>NO_PUSH=true</code> to verify the changes before pushing the image to the registry.</p>
@@ -85,10 +85,10 @@ pipelineJob('Android/Environment/Mirror/Docker Image Template') {
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/mirror/docker_image_template/Jenkinsfile')

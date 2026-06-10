@@ -27,15 +27,15 @@ pipeline {
       apiVersion: v1
       kind: Pod
       metadata:
-        name: jenkins-aosp-mirror-pre-checks-build-pod
+        name: jenkins-mirror-pre-checks-build-pod
         labels:
-          aosp_mirror_build_pod: "true"
+          mirror_build_pod: "true"
       spec:
-        hostname: jenkins-aosp-mirror-pre-checks-build-pod
+        hostname: jenkins-mirror-pre-checks-build-pod
         serviceAccountName: ${TERRAFORM_WORKLOADS_SERVICE_ACCOUNT}
         containers:
-        - name: aosp-mirror-pre-checks-builder-container
-          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}:${IMAGE_TAG}
+        - name: mirror-pre-checks-builder-container
+          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${MIRROR_WORKLOADS_ENV_IMAGE_NAME}:${IMAGE_TAG}
           imagePullPolicy: Always
           tty: true
     """.stripIndent()
@@ -45,9 +45,9 @@ pipeline {
       apiVersion: v1
       kind: Pod
       metadata:
-        name: jenkins-aosp-mirror-sync-mirror-build-pod
+        name: jenkins-mirror-sync-mirror-build-pod
         labels:
-          aosp_mirror_build_pod: "true"
+          mirror_build_pod: "true"
       spec:
         nodeSelector:
             workloadLabel: "android"
@@ -68,12 +68,12 @@ pipeline {
           runAsUser: 1000
           runAsGroup: 1000
           fsGroup: 1000
-        hostname: jenkins-aosp-mirror-sync-mirror-build-pod
+        hostname: jenkins-mirror-sync-mirror-build-pod
         serviceAccountName: ${TERRAFORM_WORKLOADS_SERVICE_ACCOUNT}
 
         # Runs as root (UID 0) to grant write permissions to NFS before main container starts
         initContainers:
-        - name: aosp-mirror-grant-write-permissions-container
+        - name: mirror-grant-write-permissions-container
           image: busybox:stable
           imagePullPolicy: Always
           securityContext:
@@ -83,9 +83,9 @@ pipeline {
           
           env:
           - name: TARGET_MOUNT_PATH
-            value: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            value: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
           - name: TARGET_MIRROR_ROOT_SUBDIR_NAME
-            value: ${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}
+            value: ${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}
 
           command: ["/bin/sh", "-c"]
           args: 
@@ -104,13 +104,13 @@ pipeline {
             echo "Write permissions of \${MOUNT_PATH} set successfully for GID 1000."
             ls -ld \${MOUNT_PATH}
           volumeMounts:
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
-            mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
+            mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
 
         # Main Container
         containers:
-        - name: aosp-mirror-sync-mirror-builder-container
-          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}:latest
+        - name: mirror-sync-mirror-builder-container
+          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${MIRROR_WORKLOADS_ENV_IMAGE_NAME}:latest
           imagePullPolicy: Always
           resources:
             limits:
@@ -129,14 +129,14 @@ pipeline {
           - 24h
           tty: true
           volumeMounts:
-          - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+          - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
             readOnly: false
-            name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+            name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
 
         volumes:
-        - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+        - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
           persistentVolumeClaim:
-            claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+            claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
     """.stripIndent()
 
     // Pod template for main stage; higher specs for large mirrors
@@ -146,9 +146,9 @@ pipeline {
       metadata:
         annotations:
           cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
-        name: jenkins-aosp-mirror-sync-mirror-build-pod
+        name: jenkins-mirror-sync-mirror-build-pod
         labels:
-          aosp_mirror_build_pod: "true"
+          mirror_build_pod: "true"
       spec:
         # GID (1000) is set at the Pod level
         securityContext:
@@ -180,12 +180,12 @@ pipeline {
                   operator: Exists
               topologyKey: kubernetes.io/hostname
 
-        hostname: jenkins-aosp-mirror-sync-mirror-build-pod
+        hostname: jenkins-mirror-sync-mirror-build-pod
         serviceAccountName: ${TERRAFORM_WORKLOADS_SERVICE_ACCOUNT}
 
         # Runs as root (UID 0) to grant write permissions to NFS before main container starts
         initContainers:
-        - name: aosp-mirror-grant-write-permissions-container
+        - name: mirror-grant-write-permissions-container
           image: busybox:stable
           imagePullPolicy: Always
           securityContext:
@@ -195,9 +195,9 @@ pipeline {
           
           env:
           - name: TARGET_MOUNT_PATH
-            value: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            value: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
           - name: TARGET_MIRROR_ROOT_SUBDIR_NAME
-            value: ${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}
+            value: ${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}
 
           command: ["/bin/sh", "-c"]
           args: 
@@ -216,12 +216,12 @@ pipeline {
             echo "Write permissions of \${MOUNT_PATH} set successfully for GID 1000."
             ls -ld \${MOUNT_PATH}
           volumeMounts:
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
-            mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
+            mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
 
         containers:
-        - name: aosp-mirror-sync-mirror-builder-container
-          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}:latest
+        - name: mirror-sync-mirror-builder-container
+          image: ${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${MIRROR_WORKLOADS_ENV_IMAGE_NAME}:latest
           imagePullPolicy: Always
           # Runs as the non-root user (UID 1000)
           securityContext:
@@ -233,9 +233,9 @@ pipeline {
           - 24h
           tty: true
           volumeMounts:
-          - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+          - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
             readOnly: false
-            name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+            name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
           resources:
             limits:
               cpu: 98000m
@@ -245,9 +245,9 @@ pipeline {
               memory: 180000Mi
 
         volumes:
-        - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+        - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
           persistentVolumeClaim:
-            claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+            claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
 
         nodeSelector:
           workloadLabel: android
@@ -257,7 +257,7 @@ pipeline {
     def utilsScriptPath = "./workloads/android/pipelines/environment/mirror/utils/utils.sh"
     def syncMirrorScriptPath = "./workloads/android/pipelines/environment/mirror/sync_mirror/sync_mirror.sh"
     // Mirror root subdirectory path inside container where all mirrors live
-    def mirrorRootSubdirPath = "${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}"
+    def mirrorRootSubdirPath = "${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}"
   }
 
   stages {
@@ -280,12 +280,12 @@ pipeline {
           }
 
           echo 'Checking prerequisite infra exists...'
-          container(name: 'aosp-mirror-pre-checks-builder-container') {
+          container(name: 'mirror-pre-checks-builder-container') {
             try {
               sh """/bin/bash -c '
                 source "${utilsScriptPath}"
-                if check_aosp_mirror_pvc_exists ${env.AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME} "jenkins"; then
-                  echo "[SUCCESS] Prerequisite check passed. PVC ${env.AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME} found in namespace jenkins."
+                if check_mirror_pvc_exists ${env.MIRROR_PRESET_FILESTORE_PVC_NAME} "jenkins"; then
+                  echo "[SUCCESS] Prerequisite check passed. PVC ${env.MIRROR_PRESET_FILESTORE_PVC_NAME} found in namespace jenkins."
                 else
                   exit 1
                 fi
@@ -293,7 +293,7 @@ pipeline {
             }
             catch (err) {
               currentBuild.result = 'FAILURE'
-              error("${err}\n[ERROR] Prerequisites check failed. PVC '${env.AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}' not found in namespace 'jenkins'.\nPlease run the 'Mirror > Create Mirror Infra' pipeline first.")
+              error("${err}\n[ERROR] Prerequisites check failed. PVC '${env.MIRROR_PRESET_FILESTORE_PVC_NAME}' not found in namespace 'jenkins'.\nPlease run the 'Mirror > Create Mirror Infra' pipeline first.")
             }
           }
         }
@@ -306,7 +306,7 @@ pipeline {
         script {
           echo 'Syncing Mirror with remote...'
 
-          container(name: 'aosp-mirror-sync-mirror-builder-container') {
+          container(name: 'mirror-sync-mirror-builder-container') {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
               sh """
                 "${syncMirrorScriptPath}" "${mirrorRootSubdirPath}" "${SYNC_ALL_EXISTING_MIRRORS}" "${MIRROR_DIR}" "${MIRROR_MANIFEST_URL}" "${MIRROR_MANIFEST_REF}" "${MIRROR_MANIFEST_FILE}" "${REPO_SYNC_JOBS}" "${BUILD_USER}"

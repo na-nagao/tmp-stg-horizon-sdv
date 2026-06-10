@@ -17,6 +17,15 @@
 # project ID, region, zone, network etc. Set up service accounts and
 # the required secrets.
 
+# Convert GitHub App private key to PKCS#8 format
+data "external" "pkcs8_converter" {
+  program = ["bash", "-c", "jq -r .key | openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt | jq -Rs '{result: .}'"]
+
+  query = {
+    key = var.sdv_github_app_private_key
+  }
+}
+
 resource "random_password" "pw" {
   for_each = {
     for k in local.ids_to_generate : k => local.secret_password_specs[k]
@@ -38,8 +47,7 @@ module "cuttlefish_key" {
   source             = "../modules/sdv-ssh-keypair"
   name               = "my_cuttlefish_vm_ssh_key"
   dir                = "./cuttlefish_vm_keys"
-  algorithm          = "RSA"
-  rsa_bits           = 4096
+  algorithm          = "ED25519"
   write_files        = true
   convert_to_openssh = true
 }
@@ -55,40 +63,72 @@ module "gerrit_admin_key" {
   convert_to_openssh = true
 }
 
-# Validate GitHub secrets
-resource "terraform_data" "validate_github_auth" {
+# --- Generate random passwords for SUB-ENVIRONMENTS ---
+resource "random_password" "sub_env_pw" {
+  for_each = toset(nonsensitive(local.sub_env_password_keys))
+
+  length      = local.secret_password_specs[split("_", each.key)[1]].length
+  min_lower   = local.secret_password_specs[split("_", each.key)[1]].min_lower
+  min_upper   = local.secret_password_specs[split("_", each.key)[1]].min_upper
+  min_numeric = local.secret_password_specs[split("_", each.key)[1]].min_numeric
+  min_special = local.secret_password_specs[split("_", each.key)[1]].min_special
+
+  keepers = {
+    rotation_trigger = contains(var.force_update_secret_ids, each.key) ? timestamp() : "static"
+  }
+}
+
+# Generate Cuttlefish SSH keys for each sub-environment
+module "cuttlefish_key_subenv" {
+  for_each = toset(nonsensitive(keys(var.sdv_sub_env_configs)))
+
+  source             = "../modules/sdv-ssh-keypair"
+  name               = "${each.key}_cuttlefish_vm_ssh_key"
+  dir                = "./cuttlefish_vm_keys/${each.key}"
+  algorithm          = "RSA"
+  rsa_bits           = 4096
+  write_files        = true
+  convert_to_openssh = true
+}
+
+# Generate Gerrit SSH keys for each sub-environment
+module "gerrit_admin_key_subenv" {
+  for_each = toset(nonsensitive(keys(var.sdv_sub_env_configs)))
+
+  source             = "../modules/sdv-ssh-keypair"
+  name               = "${each.key}_gerrit_admin_ssh_key"
+  dir                = "./gerrit_admin_keys/${each.key}"
+  algorithm          = "ECDSA"
+  ecdsa_curve        = "P521"
+  write_files        = true
+  convert_to_openssh = true
+}
+
+# Validate git auth secrets
+resource "terraform_data" "validate_git_auth" {
   lifecycle {
     precondition {
-      condition     = var.github_auth_method != "pat" || (var.github_auth_method == "pat" && length(var.sdv_github_pat) > 0 && var.sdv_github_pat != "<OPTIONAL>")
-      error_message = "Selected 'pat' auth but 'sdv_github_pat' is empty or invalid."
+      condition     = var.git_auth_method != "pat" || (var.git_auth_method == "pat" && length(var.sdv_git_pat) > 0 && var.sdv_git_pat != "<OPTIONAL>")
+      error_message = "Selected 'pat' auth but 'sdv_git_pat' is empty or invalid."
     }
 
     precondition {
-      condition     = var.github_auth_method != "app" || (var.github_auth_method == "app" && length(var.sdv_github_app_id) > 0 && var.sdv_github_app_id != "<OPTIONAL>")
+      condition     = var.git_auth_method != "app" || (var.git_auth_method == "app" && length(var.sdv_github_app_id) > 0 && var.sdv_github_app_id != "<OPTIONAL>")
       error_message = "Selected 'app' auth but 'sdv_github_app_id' is empty or invalid."
     }
 
     precondition {
-      condition     = var.github_auth_method != "app" || (var.github_auth_method == "app" && length(var.sdv_github_app_install_id) > 0 && var.sdv_github_app_install_id != "<OPTIONAL>")
+      condition     = var.git_auth_method != "app" || (var.git_auth_method == "app" && length(var.sdv_github_app_install_id) > 0 && var.sdv_github_app_install_id != "<OPTIONAL>")
       error_message = "Selected 'app' auth but 'sdv_github_app_install_id' is empty or invalid."
     }
 
     precondition {
-      condition = var.github_auth_method != "app" || (
-        var.github_auth_method == "app" &&
+      condition = var.git_auth_method != "app" || (
+        var.git_auth_method == "app" &&
         length(var.sdv_github_app_private_key) > 50 &&
         !can(regex("paste content here", var.sdv_github_app_private_key))
       )
       error_message = "Selected 'app' auth but 'sdv_github_app_private_key' set to default sample. Replace it with your actual private key."
-    }
-
-    precondition {
-      condition = var.github_auth_method != "app" || (
-        var.github_auth_method == "app" &&
-        length(var.sdv_github_app_private_key_pkcs8) > 50 &&
-        !can(regex("paste content here", var.sdv_github_app_private_key_pkcs8))
-      )
-      error_message = "Selected 'app' auth but 'sdv_github_app_private_key_pkcs8' set to default sample. Jenkins requires correct key format."
     }
   }
 }
@@ -96,9 +136,9 @@ resource "terraform_data" "validate_github_auth" {
 module "base" {
   source = "../modules/base"
 
-  github_repo_owner  = var.sdv_github_repo_owner
-  github_repo_name   = var.sdv_github_repo_name
-  github_auth_method = var.github_auth_method
+  git_repo_owner  = var.sdv_git_repo_owner
+  git_repo_name   = var.sdv_git_repo_name
+  git_auth_method = var.git_auth_method
 
   # The project is used by provider.tf to define the GCP project
   sdv_project  = var.sdv_gcp_project_id
@@ -153,9 +193,12 @@ module "base" {
   sdv_openbsw_build_node_pool_machine_type   = "c2d-highcpu-8"
   sdv_openbsw_build_node_pool_max_node_count = 20
 
-  github_env_name         = var.sdv_env_name
-  github_domain_name      = var.sdv_root_domain
-  github_repo_branch      = var.sdv_github_repo_branch
+  sdv_abfs_build_node_pool_version = var.sdv_abfs_build_node_pool_version
+  sdv_cluster_version              = var.sdv_cluster_version
+
+  env_name                = var.sdv_env_name
+  domain_name             = var.sdv_root_domain
+  git_repo_branch         = var.sdv_git_repo_branch
   gcp_backend_bucket_name = var.sdv_gcp_backend_bucket
 
   sdv_network_egress_router_name = "sdv-egress-internet"
@@ -168,201 +211,210 @@ module "base" {
 
   sdv_ssl_certificate_name   = "horizon-sdv"
   sdv_ssl_certificate_domain = "${var.sdv_env_name}.${var.sdv_root_domain}"
+  sdv_sub_environments       = nonsensitive(keys(var.sdv_sub_env_configs))
+  sdv_sub_env_branches = {
+    for env, config in var.sdv_sub_env_configs :
+    nonsensitive(env) => coalesce(config.branch, var.sdv_git_repo_branch)
+  }
 
-  sdv_abfs_license_key_b64 = var.sdv_abfs_license_key_b64
   #
   # To create a new SA with access from GKE to GC, add a new saN block.
   #
-  sdv_wi_service_accounts = {
-    sa1 = {
-      account_id   = "gke-jenkins-sa"
-      display_name = "jenkins SA"
-      description  = "the deployment of jenkins in GKE cluster makes use of this account through WIF"
+  sdv_wi_service_accounts = merge(
+    {
+      sa1 = {
+        account_id   = "gke-jenkins-sa"
+        display_name = "jenkins SA"
+        description  = "the deployment of jenkins in GKE cluster makes use of this account through WIF"
 
-      gke_sas = [
-        {
-          gke_ns = "jenkins"
-          gke_sa = "jenkins-sa"
-        },
-        {
-          gke_ns = "jenkins"
-          gke_sa = "jenkins"
-        }
-      ]
+        gke_sas = [
+          {
+            gke_ns = "jenkins"
+            gke_sa = "jenkins-sa"
+          },
+          {
+            gke_ns = "jenkins"
+            gke_sa = "jenkins"
+          }
+        ]
 
-      roles = toset([
-        "roles/storage.objectUser",
-        "roles/artifactregistry.writer",
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-        "roles/container.admin",
-        "roles/iap.tunnelResourceAccessor",
-        "roles/iam.serviceAccountUser",
-        "roles/compute.instanceAdmin.v1",
-        "roles/workstations.admin",
-        "roles/storage.bucketViewer",
-        "roles/spanner.admin",
-        "roles/logging.admin",
-        "roles/editor",
-        "roles/iam.serviceAccountAdmin",
-        "roles/resourcemanager.projectIamAdmin"
-      ])
+        roles = toset([
+          "roles/storage.objectUser",
+          "roles/artifactregistry.writer",
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+          "roles/container.admin",
+          "roles/iap.tunnelResourceAccessor",
+          "roles/iam.serviceAccountUser",
+          "roles/compute.instanceAdmin.v1",
+          "roles/workstations.admin",
+          "roles/storage.bucketViewer",
+          "roles/spanner.admin",
+          "roles/logging.admin",
+          "roles/editor",
+          "roles/iam.serviceAccountAdmin",
+          "roles/resourcemanager.projectIamAdmin"
+        ])
+      },
+      sa2 = {
+        account_id   = "gke-argocd-sa"
+        display_name = "gke-argocd SA"
+        description  = "argocd/argocd-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "argocd"
+            gke_sa = "argocd-sa"
+          }
+        ]
+        roles = toset([
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+        ])
+      },
+      sa3 = {
+        account_id   = "gke-keycloak-sa"
+        display_name = "keycloak SA"
+        description  = "keycloak/keycloak-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "keycloak"
+            gke_sa = "keycloak-sa"
+          }
+        ]
+
+        roles = toset([
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+        ])
+      },
+      sa4 = {
+        account_id   = "gke-gerrit-sa"
+        display_name = "gke-gerrit SA"
+        description  = "gerrit/gerrit-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "gerrit"
+            gke_sa = "gerrit-sa"
+          }
+        ]
+
+        roles = toset([
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+        ])
+      },
+      sa5 = {
+        account_id   = "monitoring-sa"
+        display_name = "monitoring-sa"
+        description  = "monitoring-sa/monitoring-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "monitoring"
+            gke_sa = "monitoring-sa"
+          }
+        ]
+
+        roles = toset([
+          "roles/iam.workloadIdentityUser",
+          "roles/monitoring.viewer"
+        ])
+      },
+      sa6 = {
+        account_id   = "monitoring-writer-sa"
+        display_name = "monitoring-writer-sa"
+        description  = "monitoring-writer-sa/monitoring-writer-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "monitoring"
+            gke_sa = "monitoring-writer-sa"
+          }
+        ]
+        roles = toset([
+          "roles/monitoring.metricWriter",
+          "roles/monitoring.viewer",
+          "roles/iam.serviceAccountTokenCreator",
+          "roles/iam.serviceAccountUser",
+          "roles/iam.workloadIdentityUser"
+        ])
+      },
+      sa7 = {
+        account_id   = "gke-tf-wl-sa"
+        display_name = "terraform-workloads-sa"
+        description  = "jenkins/terraform-workloads-sa in GKE cluster makes use of this account through WI to deploy extra on-demand resources via workload pipelines"
+
+        gke_sas = [
+          {
+            gke_ns = "jenkins"
+            gke_sa = "terraform-workloads-sa"
+          }
+        ]
+
+        roles = toset([
+          "roles/storage.objectUser",
+          "roles/artifactregistry.writer",
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+          "roles/container.admin",
+          "roles/iap.tunnelResourceAccessor",
+          "roles/iam.serviceAccountUser",
+          "roles/compute.instanceAdmin.v1",
+          "roles/workstations.admin",
+          "roles/storage.bucketViewer",
+          "roles/spanner.admin",
+          "roles/logging.admin",
+          "roles/editor",
+          "roles/iam.serviceAccountAdmin",
+          "roles/resourcemanager.projectIamAdmin",
+          "roles/file.editor"
+        ])
+      },
+      sa8 = {
+        account_id   = "external-dns-sa"
+        display_name = "external-dns-sa"
+        description  = "external-dns-sa/external-dsn-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "external-dns"
+            gke_sa = "external-dns-sa"
+          }
+        ]
+        roles = toset([
+          "roles/dns.admin"
+        ])
+      },
+      sa9 = {
+        account_id   = "gke-mcp-gateway-sa"
+        display_name = "mcp-gateway-registry SA"
+        description  = "mcp-gateway-registry/mcp-gateway-registry-sa in GKE cluster makes use of this account through WI"
+
+        gke_sas = [
+          {
+            gke_ns = "mcp-gateway-registry"
+            gke_sa = "mcp-gateway-registry-sa"
+          }
+        ]
+        roles = toset([
+          "roles/secretmanager.secretAccessor",
+          "roles/iam.serviceAccountTokenCreator",
+        ])
+      }
     },
-    sa2 = {
-      account_id   = "gke-argocd-sa"
-      display_name = "gke-argocd SA"
-      description  = "argocd/argocd-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "argocd"
-          gke_sa = "argocd-sa"
-        }
-      ]
-      roles = toset([
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-      ])
-    },
-    sa3 = {
-      account_id   = "gke-keycloak-sa"
-      display_name = "keycloak SA"
-      description  = "keycloak/keycloak-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "keycloak"
-          gke_sa = "keycloak-sa"
-        }
-      ]
-
-      roles = toset([
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-      ])
-    },
-    sa4 = {
-      account_id   = "gke-gerrit-sa"
-      display_name = "gke-gerrit SA"
-      description  = "gerrit/gerrit-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "gerrit"
-          gke_sa = "gerrit-sa"
-        }
-      ]
-
-      roles = toset([
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-      ])
-    },
-    sa5 = {
-      account_id   = "monitoring-sa"
-      display_name = "monitoring-sa"
-      description  = "monitoring-sa/monitoring-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "monitoring"
-          gke_sa = "monitoring-sa"
-        }
-      ]
-
-      roles = toset([
-        "roles/iam.workloadIdentityUser",
-        "roles/monitoring.viewer"
-      ])
-    },
-    sa6 = {
-      account_id   = "monitoring-writer-sa"
-      display_name = "monitoring-writer-sa"
-      description  = "monitoring-writer-sa/monitoring-writer-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "monitoring"
-          gke_sa = "monitoring-writer-sa"
-        }
-      ]
-      roles = toset([
-        "roles/monitoring.metricWriter",
-        "roles/monitoring.viewer",
-        "roles/iam.serviceAccountTokenCreator",
-        "roles/iam.serviceAccountUser",
-        "roles/iam.workloadIdentityUser"
-      ])
-    },
-    sa7 = {
-      account_id   = "gke-terraform-workloads-sa"
-      display_name = "terraform-workloads-sa"
-      description  = "jenkins/terraform-workloads-sa in GKE cluster makes use of this account through WI to deploy extra on-demand resources via workload pipelines"
-
-      gke_sas = [
-        {
-          gke_ns = "jenkins"
-          gke_sa = "terraform-workloads-sa"
-        }
-      ]
-
-      roles = toset([
-        "roles/storage.objectUser",
-        "roles/artifactregistry.writer",
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-        "roles/container.admin",
-        "roles/iap.tunnelResourceAccessor",
-        "roles/iam.serviceAccountUser",
-        "roles/compute.instanceAdmin.v1",
-        "roles/workstations.admin",
-        "roles/storage.bucketViewer",
-        "roles/spanner.admin",
-        "roles/logging.admin",
-        "roles/editor",
-        "roles/iam.serviceAccountAdmin",
-        "roles/resourcemanager.projectIamAdmin",
-        "roles/file.editor"
-      ])
-    },
-    sa8 = {
-      account_id   = "external-dns-sa"
-      display_name = "external-dns-sa"
-      description  = "external-dns-sa/external-dsn-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "external-dns"
-          gke_sa = "external-dns-sa"
-        }
-      ]
-      roles = toset([
-        "roles/dns.admin"
-      ])
-    },
-    sa9 = {
-      account_id   = "gke-mcp-gateway-registry-sa"
-      display_name = "mcp-gateway-registry SA"
-      description  = "mcp-gateway-registry/mcp-gateway-registry-sa in GKE cluster makes use of this account through WI"
-
-      gke_sas = [
-        {
-          gke_ns = "mcp-gateway-registry"
-          gke_sa = "mcp-gateway-registry-sa"
-        }
-      ]
-      roles = toset([
-        "roles/secretmanager.secretAccessor",
-        "roles/iam.serviceAccountTokenCreator",
-      ])
-    }
-  }
+    local.sub_env_service_accounts
+  )
 
   #
   # Define the secrets and values and gke access rules
   sdv_gcp_secrets_map = merge(
     local.sdv_gcp_common_secrets_map,
-    var.github_auth_method == "app" ? local.sdv_gcp_github_app_secrets_map : local.sdv_gcp_github_pat_secrets_map
+    var.git_auth_method == "app" ? local.sdv_gcp_github_app_secrets_map : local.sdv_gcp_git_pat_secrets_map,
+    local.sub_env_secrets,
+    local.sub_env_git_secrets
   )
 
   sdv_gcp_parameters_map = {
@@ -402,22 +454,34 @@ module "base" {
       value                = base64encode(var.sdv_gcp_backend_bucket)
     }
     p8 = {
-      parameter_id         = "sdv_github_repo_name"
+      parameter_id         = "sdv_git_repo_name"
       parameter_version_id = "v1"
-      value                = base64encode(var.sdv_github_repo_name)
+      value                = base64encode(var.sdv_git_repo_name)
     }
     p9 = {
-      parameter_id         = "sdv_github_repo_branch"
+      parameter_id         = "sdv_git_repo_branch"
       parameter_version_id = "v1"
-      value                = base64encode(var.sdv_github_repo_branch)
+      value                = base64encode(var.sdv_git_repo_branch)
     }
     p10 = {
-      parameter_id         = "sdv_github_auth_method"
+      parameter_id         = "sdv_git_auth_method"
       parameter_version_id = "v1"
-      value                = base64encode(var.github_auth_method)
+      value                = base64encode(var.git_auth_method)
+    }
+    p11 = {
+      parameter_id         = "sdv_sub_environments"
+      parameter_version_id = "v1"
+      value                = base64encode(jsonencode(nonsensitive(keys(var.sdv_sub_env_configs))))
     }
   }
 
   #ARM64_ENABLEMENT
   enable_arm64 = var.enable_arm64
+
+  # Network policies configuration
+  sdv_enable_network_policies = var.sdv_enable_network_policies
+  # KMS encryption for GKE secrets (optional)
+  sdv_enable_kms_encryption = var.sdv_enable_kms_encryption
+  # DNSSEC configuration for Cloud DNS
+  sdv_dns_dnssec_enabled = var.sdv_dns_dnssec_enabled
 }

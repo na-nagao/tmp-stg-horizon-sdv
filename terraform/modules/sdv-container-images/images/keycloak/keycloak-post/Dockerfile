@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22.13.0
+FROM --platform=linux/amd64 node:22-alpine
 WORKDIR /usr/src/app
 RUN chown node:node ./
 USER node
-COPY package.json ./
-COPY keycloak.mjs ./
+COPY --chown=node:node package.json ./
+COPY --chown=node:node keycloak.mjs ./
 RUN npm install
 CMD ["node", "./keycloak.mjs"]

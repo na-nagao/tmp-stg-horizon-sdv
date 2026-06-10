@@ -16,20 +16,21 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: monitoring-sa
-  namespace: monitoring
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
   annotations:
-    iam.gke.io/gcp-service-account: monitoring-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: {{ .Values.config.namespacePrefix }}monitoring-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: monitoring-writer-sa
-  namespace: monitoring
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
   annotations:
-    iam.gke.io/gcp-service-account: monitoring-writer-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: {{ .Values.config.namespacePrefix }}monitoring-writer-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
+{{- if not .Values.config.isSubEnvironment }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -96,6 +97,7 @@ subjects:
 - kind: ServiceAccount
   name: kube-state-metrics
   namespace: gmp-public
+  {{- end}}
 ---
 apiVersion: external-secrets.io/v1beta1 #add by nagao
 kind: SecretStore
@@ -137,3 +139,4 @@ spec:
     - secretKey: ca.crt
       remoteRef:
         key: internal-ca-cert
+

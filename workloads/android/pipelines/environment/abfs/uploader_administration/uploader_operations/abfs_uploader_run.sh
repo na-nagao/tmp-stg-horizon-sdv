@@ -17,7 +17,7 @@
 function abfs_override_tf() {
   cat > main_override.tf <<EOL
 module "abfs-uploaders" {
-  source = "git::${TERRAFORM_GITHUB_URL}//modules/uploaders?ref=${TERRAFORM_GITHUB_VERSION}"
+  source = "git::${TERRAFORM_GIT_URL}//modules/uploaders?ref=${TERRAFORM_GIT_VERSION}"
 }
 EOL
 }
@@ -37,6 +37,7 @@ function abfs_uploader_run() {
   export TF_VAR_project_id=${CLOUD_PROJECT}
   export TF_VAR_region=${CLOUD_REGION}
   export TF_VAR_zone=${CLOUD_ZONE}
+  export TF_VAR_sdv_network="sdv-network"
   export TF_VAR_abfs_gerrit_uploader_count=${UPLOADER_COUNT}
   export TF_VAR_abfs_gerrit_uploader_machine_type=${UPLOADER_MACHINE_TYPE}
   export TF_VAR_abfs_gerrit_uploader_datadisk_size_gb=${UPLOADER_DATADISK_SIZE_GB}

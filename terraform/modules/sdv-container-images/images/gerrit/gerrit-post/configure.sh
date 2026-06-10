@@ -17,7 +17,7 @@
 # Important delay ! Actions below cannot be done while Init stage is ongoing
 n=1
 until [ "$n" -ge 4 ]; do
-  if ! kubectl get pods -n gerrit -o jsonpath="{.items[*].spec.initContainers[*].image}" | tr -s ' ' '\n' | grep gerrit-init
+  if ! kubectl get pods -n ${NAMESPACE_PREFIX}gerrit -o jsonpath="{.items[*].spec.initContainers[*].image}" | tr -s ' ' '\n' | grep gerrit-init
   then
     echo "gerrit-init not yet running, wait 30s (loop=$n)"
     sleep 30
@@ -58,7 +58,7 @@ function gerrit-test-connection() {
     ERR_MSG=$(ssh -o LogLevel=ERROR -o ConnectTimeout=1 -o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeychecking=no -p 29418 -i /root/.ssh/privatekey gerrit-admin@gerrit-service gerrit version 2>&1)
     if [[ $ERR_MSG == *"gerrit version"* ]]; then
       echo "SSH connection worked, no need to craft All-Users repository. Just retrieve HTTP PASSWORD"
-      HTTP_PASSWORD=$(kubectl get secrets -n jenkins jenkins-gerrit-http-password -o json | jq -r "(.data.password)" | base64 -d)
+      HTTP_PASSWORD=$(kubectl get secrets -n ${NAMESPACE_PREFIX}jenkins jenkins-gerrit-http-password -o json | jq -r "(.data.password)" | base64 -d)
       if [ -z "${HTTP_PASSWORD}" ]; then
         echo "ERROR: HTTP_PASSWORD is empty."
         retVal="RETVAL_OK"
@@ -80,7 +80,7 @@ function gerrit-test-connection() {
 function gerrit-restart() {
   retVal="RETVAL_NOK"
   echo "Restarting Gerrit..."
-  kubectl delete pod gerrit-0 -n gerrit
+  kubectl delete pod gerrit-0 -n ${NAMESPACE_PREFIX}gerrit
   echo "Testing SSH connection again (after restart)..."
 
   local n=1
@@ -384,6 +384,10 @@ function gerrit-craft-all-users() {
       sed -i "s/##HTTP_PASSWORD##/${HTTP_PASSWORD_BASE64}/g" ./jenkins-gerrit-secret.json
       sed -i "s/##HTTP_PASSWORD##/${HTTP_PASSWORD_BASE64}/g" ./gerrit-secret.json
 
+      # Update secrets JSON files with the correct namespace
+      sed -i "s/##NAMESPACE##/${NAMESPACE_PREFIX}jenkins/g" ./jenkins-gerrit-secret.json
+      sed -i "s/##NAMESPACE##/${NAMESPACE_PREFIX}gerrit/g" ./gerrit-secret.json
+
       # Debug: show contents of both secrets after editing
       if [[ "${DEBUG:-0}" == "1" ]]; then
         echo "Jenkins Gerrit Secret after editing:"
@@ -398,27 +402,27 @@ function gerrit-craft-all-users() {
         echo "$(date -u +'%Y-%m-%dT%H:%M:%SZ') [DEBUG] Deleting existing secret gerrit-http-password (DELETE)"
       fi
       # Delete existing jenkins-gerrit-secret if any
-      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/jenkins/secrets/jenkins-gerrit-http-password
+      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}jenkins/secrets/jenkins-gerrit-http-password
       # Create new jenkins-gerrit-secret
-      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/jenkins/secrets -d @jenkins-gerrit-secret.json
+      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}jenkins/secrets -d @jenkins-gerrit-secret.json
 
       # Delete existing gerrit-secret if any
-      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/gerrit/secrets/gerrit-http-password
+      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets/gerrit-http-password
       # Create new gerrit-secret
-      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/gerrit/secrets -d @gerrit-secret.json
+      curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets -d @gerrit-secret.json
 
       # Debug: confirm that the secret was created
       if [[ "${DEBUG:-0}" == "1" ]]; then
         echo "$(date -u +'%Y-%m-%dT%H:%M:%SZ') [DEBUG] Fetching created secret jenkins-gerrit-http-password:"
         curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" \
           -H 'Accept: application/json' \
-          -X GET ${APISERVER}/api/v1/namespaces/jenkins/secrets/jenkins-gerrit-http-password \
+          -X GET ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}jenkins/secrets/jenkins-gerrit-http-password \
           | jq .
         
         echo "$(date -u +'%Y-%m-%dT%H:%M:%SZ') [DEBUG] Fetching created secret gerrit-http-password:"
         curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" \
           -H 'Accept: application/json' \
-          -X GET ${APISERVER}/api/v1/namespaces/gerrit/secrets/gerrit-http-password \
+          -X GET ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets/gerrit-http-password \
           | jq .
       fi
 

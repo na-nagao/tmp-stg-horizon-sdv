@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "sdv-certificate-manager" module.
 
 variable "name" {
   default = "Define the name of the certificate"
   type    = string
 }
 
-variable "domain" {
-  description = "Define the domain of the certificate"
-  type        = string
+variable "domains" {
+  type        = map(string)
+  description = "Map of env_name => domain_name"
 }

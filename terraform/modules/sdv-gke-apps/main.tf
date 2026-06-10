@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,15 +11,73 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-# Description
-# Main configuration file for the "sdv-gke-apps" module.
-# Create and configure required Kubernetes resources.
 
-# Create Argo CD namespace
+locals {
+  all_environments = merge(
+    {
+      "main" = {
+        namespace_prefix = ""
+        argocd_namespace = var.argocd_namespace
+        subdomain        = var.subdomain_name
+        is_main          = true
+        env_name         = "main"
+        branch           = var.git_repo_branch
+      }
+    },
+    {
+      for env in var.sub_environments : env => {
+        namespace_prefix = "${env}-"
+        argocd_namespace = "${env}-argocd"
+        subdomain        = "${env}.${var.subdomain_name}"
+        is_main          = false
+        env_name         = env
+        branch           = lookup(var.sub_env_branches, env, var.git_repo_branch)
+      }
+    }
+  )
+}
+
+# TAA-1571: State migration blocks for 3.0.0 -> 3.1.0 upgrade.
+# Remove after all environments have been upgraded.
+moved {
+  from = kubernetes_namespace.argocd
+  to   = kubernetes_namespace.argocd["main"]
+}
+moved {
+  from = kubernetes_service_account.argocd_sa
+  to   = kubernetes_service_account.argocd_sa["main"]
+}
+moved {
+  from = kubernetes_secret.argocd_secret
+  to   = kubernetes_secret.argocd_secret["main"]
+}
+moved {
+  from = helm_release.argocd
+  to   = helm_release.argocd_main
+}
+moved {
+  from = kubectl_manifest.argocd_secret_store
+  to   = kubectl_manifest.argocd_secret_store["main"]
+}
+moved {
+  from = kubectl_manifest.es_argocd_secret
+  to   = kubectl_manifest.es_argocd_secret["main"]
+}
+moved {
+  from = kubectl_manifest.argocd_appproject
+  to   = kubectl_manifest.argocd_appproject["main"]
+}
+moved {
+  from = kubectl_manifest.argocd_application
+  to   = kubectl_manifest.argocd_application["main"]
+}
+
+# Create Argo CD namespace for each environment
 resource "kubernetes_namespace" "argocd" {
+  for_each = local.all_environments
+
   metadata {
-    name = var.argocd_namespace
+    name = each.value.argocd_namespace
   }
 
   timeouts {
@@ -38,13 +96,15 @@ resource "helm_release" "external_secrets" {
   wait             = true
 }
 
-# Create the Service Account
+# Create the Service Account for Argo CD on each environment
 resource "kubernetes_service_account" "argocd_sa" {
+  for_each = local.all_environments
+
   metadata {
     name      = "argocd-sa"
-    namespace = kubernetes_namespace.argocd.metadata[0].name
+    namespace = kubernetes_namespace.argocd[each.key].metadata[0].name
     annotations = {
-      "iam.gke.io/gcp-service-account" = "gke-argocd-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+      "iam.gke.io/gcp-service-account" = each.value.is_main ? "gke-argocd-sa@${var.gcp_project_id}.iam.gserviceaccount.com" : "gke-${each.value.env_name}-argocd-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
     }
   }
 
@@ -53,20 +113,22 @@ resource "kubernetes_service_account" "argocd_sa" {
   ]
 }
 
-# Create the empty GitHub creds secret
-resource "kubernetes_secret" "argocd_github_creds" {
+# Create empty Git creds secret for each environment
+resource "kubernetes_secret" "argocd_git_creds" {
+  for_each = local.all_environments
+
   metadata {
-    name      = "argocd-github-creds"
-    namespace = kubernetes_namespace.argocd.metadata[0].name
+    name      = "argocd-git-creds"
+    namespace = kubernetes_namespace.argocd[each.key].metadata[0].name
     labels = {
       "argocd.argoproj.io/secret-type" = "repository"
     }
   }
 
   data = {
-    "url"      = var.github_repo_url
+    "url"      = var.git_repo_url
     "type"     = "git"
-    "username" = var.github_auth_method == "pat" ? "git" : null
+    "username" = var.git_auth_method == "pat" ? "git" : null
   }
 
   depends_on = [
@@ -81,11 +143,13 @@ resource "kubernetes_secret" "argocd_github_creds" {
   }
 }
 
-# Create the empty Argo CD admin secret
+# Create the empty Argo CD admin secret for each environment
 resource "kubernetes_secret" "argocd_secret" {
+  for_each = local.all_environments
+
   metadata {
     name      = "argocd-secret"
-    namespace = kubernetes_namespace.argocd.metadata[0].name
+    namespace = kubernetes_namespace.argocd[each.key].metadata[0].name
   }
 
   depends_on = [
@@ -100,8 +164,8 @@ resource "kubernetes_secret" "argocd_secret" {
   }
 }
 
-# Deploy Argo CD
-resource "helm_release" "argocd" {
+# Deploy Argo CD - Main environment first
+resource "helm_release" "argocd_main" {
   name       = "argocd"
   chart      = "argo-cd"
   repository = "https://argoproj.github.io/argo-helm"
@@ -121,13 +185,54 @@ resource "helm_release" "argocd" {
   depends_on = [
     helm_release.external_secrets,
     kubernetes_service_account.argocd_sa,
-    kubernetes_secret.argocd_github_creds,
+    kubernetes_secret.argocd_git_creds,
     kubernetes_secret.argocd_secret
   ]
 }
 
-# Create the SecretStore
+# Deploy Argo CD for sub-environments
+resource "helm_release" "argocd_subenvs" {
+  for_each = { for k, v in local.all_environments : k => v if !v.is_main }
+
+  name       = "${each.key}-argocd"
+  chart      = "argo-cd"
+  repository = "https://argoproj.github.io/argo-helm"
+  version    = var.argocd_chart_version
+  namespace  = each.value.argocd_namespace
+
+  create_namespace = false
+  wait             = true
+  skip_crds        = true # CRDs already installed by main
+
+  values = [
+    templatefile("${path.module}/argocd-values.yaml.tpl", {
+      subdomain_name = each.value.subdomain
+      domain_name    = var.domain_name
+    }),
+    yamlencode({
+      crds = {
+        install = false
+      }
+      global = {
+        rbac = {
+          create = true
+        }
+      }
+    })
+  ]
+
+  depends_on = [
+    helm_release.argocd_main,
+    kubernetes_service_account.argocd_sa,
+    kubernetes_secret.argocd_git_creds,
+    kubernetes_secret.argocd_secret
+  ]
+}
+
+# Create SecretStore for each environment
 resource "kubectl_manifest" "argocd_secret_store" {
+  for_each = local.all_environments
+
   validate_schema = false
 
   yaml_body = <<-EOT
@@ -135,7 +240,7 @@ resource "kubectl_manifest" "argocd_secret_store" {
     kind: SecretStore
     metadata:
       name: argocd-secret-store
-      namespace: ${kubernetes_namespace.argocd.metadata[0].name}
+      namespace: ${kubernetes_namespace.argocd[each.key].metadata[0].name}
     spec:
       provider:
         gcpsm:
@@ -145,63 +250,70 @@ resource "kubectl_manifest" "argocd_secret_store" {
               clusterLocation: ${var.gcp_cloud_region}
               clusterName: ${var.sdv_cluster_name}
               serviceAccountRef:
-                name: ${kubernetes_service_account.argocd_sa.metadata[0].name}
+                name: ${kubernetes_service_account.argocd_sa[each.key].metadata[0].name}
   EOT
 
   depends_on = [
     helm_release.external_secrets,
-    kubernetes_service_account.argocd_sa
+    kubernetes_service_account.argocd_sa,
+    helm_release.argocd_main,
+    helm_release.argocd_subenvs
   ]
 }
 
-# Create the ExternalSecret
-resource "kubectl_manifest" "es_github_creds" {
+# Create ExternalSecret for Git creds for each environment
+resource "kubectl_manifest" "es_git_creds" {
+  for_each = local.all_environments
+
   validate_schema = false
 
   yaml_body = <<-EOT
     apiVersion: external-secrets.io/v1beta1
     kind: ExternalSecret
     metadata:
-      name: argocd-github-creds
-      namespace: ${kubernetes_namespace.argocd.metadata[0].name}
+      name: argocd-git-creds
+      namespace: ${kubernetes_namespace.argocd[each.key].metadata[0].name}
     spec:
       refreshInterval: 10s
       secretStoreRef:
         kind: SecretStore
-        name: ${kubectl_manifest.argocd_secret_store.name}
+        name: argocd-secret-store
       target:
-        name: ${kubernetes_secret.argocd_github_creds.metadata[0].name}
+        name: ${kubernetes_secret.argocd_git_creds[each.key].metadata[0].name}
         creationPolicy: Merge
       data:
-      %{if var.github_auth_method == "app"}
+      %{if var.git_auth_method == "app"}
       - secretKey: githubAppID
         remoteRef:
-          key: github-app-id-b64
+          key: ${each.value.namespace_prefix}github-app-id-b64
           decodingStrategy: Base64
       - secretKey: githubAppInstallationID
         remoteRef:
-          key: github-app-installation-id-b64
+          key: ${each.value.namespace_prefix}github-app-installation-id-b64
           decodingStrategy: Base64
       - secretKey: githubAppPrivateKey
         remoteRef:
-          key: github-app-private-key-b64
+          key: ${each.value.namespace_prefix}github-app-private-key-b64
           decodingStrategy: Base64
       %{else}
       - secretKey: password
         remoteRef:
-          key: github-pat-b64
+          key: ${each.value.namespace_prefix}git-pat-b64
           decodingStrategy: Base64
       %{endif}
   EOT
 
   depends_on = [
     kubectl_manifest.argocd_secret_store,
-    kubernetes_secret.argocd_github_creds
+    kubernetes_secret.argocd_git_creds
   ]
 }
 
-# Create the ExternalSecret for the Argo CD
+
+# Create ExternalSecret for ArgoCD admin password for each environment
 resource "kubectl_manifest" "es_argocd_secret" {
+  for_each = local.all_environments
+
   validate_schema = false
 
   yaml_body = <<-EOT
@@ -209,19 +321,19 @@ resource "kubectl_manifest" "es_argocd_secret" {
     kind: ExternalSecret
     metadata:
       name: argocd-secret
-      namespace: ${kubernetes_namespace.argocd.metadata[0].name}
+      namespace: ${kubernetes_namespace.argocd[each.key].metadata[0].name}
     spec:
       refreshInterval: 10s
       secretStoreRef:
         kind: SecretStore
-        name: ${kubectl_manifest.argocd_secret_store.name}
+        name: argocd-secret-store
       target:
-        name: ${kubernetes_secret.argocd_secret.metadata[0].name}
+        name: ${kubernetes_secret.argocd_secret[each.key].metadata[0].name}
         creationPolicy: Merge
       data:
       - secretKey: admin.password
         remoteRef:
-          key: argocd-admin-password-b64
+          key: ${each.value.namespace_prefix}argocd-admin-password-b64
           decodingStrategy: Base64
   EOT
 
@@ -231,18 +343,20 @@ resource "kubectl_manifest" "es_argocd_secret" {
   ]
 }
 
-# Apply the Argo CD AppProject
+# Create AppProject for each environment
 resource "kubectl_manifest" "argocd_appproject" {
+  for_each = local.all_environments
+
   validate_schema = false
 
   yaml_body = <<-EOT
     apiVersion: argoproj.io/v1alpha1
     kind: AppProject
     metadata:
-      name: ${var.argocd_application_name}
-      namespace: ${kubernetes_namespace.argocd.metadata[0].name}
+      name: "${each.value.namespace_prefix}${var.argocd_application_name}"
+      namespace: ${kubernetes_namespace.argocd[each.key].metadata[0].name}
     spec:
-      description: Horizon SDV
+      description: "${each.value.is_main ? "Main Environment" : "Sub-Environment ${each.value.env_name}"}"
       sourceRepos:
       - "*"
       destinations:
@@ -257,39 +371,49 @@ resource "kubectl_manifest" "argocd_appproject" {
   EOT
 
   depends_on = [
-    helm_release.argocd
+    helm_release.argocd_main,
+    helm_release.argocd_subenvs
   ]
 }
 
-# Apply the Argo CD Application
+# Create Application for each environment
 resource "kubectl_manifest" "argocd_application" {
+  for_each = local.all_environments
+
   validate_schema = false
+  wait            = true
 
   yaml_body = <<-EOT
     apiVersion: argoproj.io/v1alpha1
     kind: Application
     metadata:
-      name: ${var.argocd_application_name}
-      namespace: ${kubernetes_namespace.argocd.metadata[0].name}
+      name: "${each.value.namespace_prefix}${var.argocd_application_name}"
+      namespace: ${kubernetes_namespace.argocd[each.key].metadata[0].name}
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
     spec:
-      project: horizon-sdv
+      project: "${each.value.namespace_prefix}${var.argocd_application_name}"
       source:
-        repoURL: ${var.github_repo_url}
+        repoURL: ${var.git_repo_url}
         path: gitops
-        targetRevision: ${var.github_repo_branch}
+        targetRevision: ${each.value.branch}
         helm:
           values: |
-            github:
-              authMethod: ${var.github_auth_method}
+            git:
+              authMethod: ${var.git_auth_method}
               username: "git"
-              repoOwner: ${var.github_repo_owner}
-              repoName: ${var.github_repo_name}
+              repoOwner: ${var.git_repo_owner}
+              repoName: ${var.git_repo_name}
             config:
-              domain: ${var.subdomain_name}.${var.domain_name}
+              domain: ${each.value.subdomain}.${var.domain_name}
               projectID: ${var.gcp_project_id}
               region: ${var.gcp_cloud_region}
               zone: ${var.gcp_cloud_zone}
               backendBucket: ${var.gcp_backend_bucket}
+              namespacePrefix: "${each.value.namespace_prefix}"
+              isSubEnvironment: ${!each.value.is_main}
+              environmentName: "${each.value.env_name}"
+              enableNetworkPolicies: ${var.enable_network_policies}
               apps:
                 landingpage: ${var.gcp_cloud_region}-docker.pkg.dev/${var.gcp_project_id}/${var.gcp_registry_id}/landingpage-app:${var.images["landingpage-app"].version}
                 gerritMcpServer: ${var.gcp_cloud_region}-docker.pkg.dev/${var.gcp_project_id}/${var.gcp_registry_id}/gerrit-mcp-server-app:${var.images["gerrit-mcp-server-app"].version}
@@ -308,13 +432,12 @@ resource "kubectl_manifest" "argocd_application" {
                 gerrit: ${var.gcp_cloud_region}-docker.pkg.dev/${var.gcp_project_id}/${var.gcp_registry_id}/gerrit-post:${var.images["gerrit-post"].version}
               workloads:
                 android:
-                  url: ${var.github_repo_url}
-                  branch: ${var.github_repo_branch}
+                  url: ${var.git_repo_url}
+                  branch: ${each.value.branch}
             spec:
               source:
-                repoURL: ${var.github_repo_url}
-                targetRevision: ${var.github_repo_branch}
-      path: gitops
+                repoURL: ${var.git_repo_url}
+                targetRevision: ${each.value.branch}
       destination:
         server: https://kubernetes.default.svc
       revisionHistoryLimit: 1
@@ -333,6 +456,8 @@ resource "kubectl_manifest" "argocd_application" {
   EOT
 
   depends_on = [
-    kubectl_manifest.argocd_appproject
+    kubectl_manifest.argocd_appproject,
+    helm_release.argocd_main,
+    helm_release.argocd_subenvs
   ]
 }

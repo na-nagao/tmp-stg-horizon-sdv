@@ -96,7 +96,7 @@ process_single_mirror() {
   echo "${metadata_file_contents}" | print_result
 
   log_info "Storage info for Mirror PVC before syncing '${mirror_name}':"
-  get_aosp_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
+  get_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
 
   # Sync the mirror with retries; func handles updating metadata status and returns 1 on failure
   sync_mirror_with_retries \
@@ -116,7 +116,7 @@ process_single_mirror() {
   echo "${metadata_file_contents}" | print_result
 
   log_info "Storage info for Mirror PVC after syncing '${mirror_name}':"
-  get_aosp_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
+  get_mirror_pvc_storage_info "${MIRROR_ROOT_SUBDIR_PATH}"
 
   popd > /dev/null || log_error "Cannot return from directory ${mirror_dir_path}"
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,13 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "sdv-ssh-keypair" module.
-# Create a ssh keys for horizon eg. cuttlefish and gerrit ssh private keys.
 
-
-# 1) Generate key pair
 resource "tls_private_key" "this" {
   algorithm   = var.algorithm
   rsa_bits    = var.algorithm == "RSA" ? var.rsa_bits : null
@@ -35,24 +29,49 @@ resource "null_resource" "mkdir" {
   }
 }
 
-# 3) Save private key (PEM)
+# 3) Save private key:
+# If algorithm is ED25519, or RSA, use the OpenSSH attribute to get the correct key
+# to avoid conversion issues.
 resource "local_sensitive_file" "private_pem" {
-  count           = var.write_files ? 1 : 0
-  depends_on      = [null_resource.mkdir]
-  content         = tls_private_key.this.private_key_pem
+  count      = var.write_files ? 1 : 0
+  depends_on = [null_resource.mkdir]
+  content = (
+    contains(["ED25519", "RSA"], var.algorithm)
+    ? tls_private_key.this.private_key_openssh
+    : tls_private_key.this.private_key_pem
+  )
   filename        = local.private_path
   file_permission = "0600"
 }
 
 
 # 4) Convert that private key file to OpenSSH format (-o) IN PLACE
-resource "null_resource" "to_openssh" {
-  count      = var.write_files && var.convert_to_openssh ? 1 : 0
+# Force an idempotent conversion check on every run to guarantee key
+# converted.
+# Skip for RSA and ed25519 private keys which are already emitted
+# The conversion is not suitable for ed25519 and for RSA it causes issues
+# in conversion with public key creation.
+resource "terraform_data" "to_openssh" {
+  count      = var.write_files && var.convert_to_openssh && var.algorithm != "ED25519" && var.algorithm != "RSA" ? 1 : 0
   depends_on = [local_sensitive_file.private_pem]
 
+  triggers_replace = {
+    always_run = timestamp()
+  }
+
   provisioner "local-exec" {
-    #command = "ssh-keygen -p -f ./cuttlefish_vm_keys/my_cuttlefish_vm_ssh_key -N \"\" -o"
-    command     = "ssh-keygen -p -f ${local.private_path} -N \"\" -o"
+    # 1. Check if the file is already OpenSSH to prevent double-processing
+    # 2. Use -p (change passphrase) to force a format rewrite (-o)
+    # 3. Use -P "" to ensure it never waits on input (hang)
+    # 4. Append the POSIX newline manually because ssh-keygen might strip it
+    # 5. Ensure errors are caught.
+    command     = <<EOT
+      set -euo pipefail
+      if ! grep -q "BEGIN OPENSSH PRIVATE KEY" "${local.private_path}"; then
+        ssh-keygen -p -P "" -f "${local.private_path}" -N "" -o
+        printf "\n" >> "${local.private_path}"
+      fi
+    EOT
     interpreter = ["bash", "-c"]
   }
 }

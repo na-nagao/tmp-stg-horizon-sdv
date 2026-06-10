@@ -81,10 +81,10 @@ by performing builds on that patchset and providing the user with a vote to thei
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/builds/gerrit/Jenkinsfile')

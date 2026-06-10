@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-# Description
-# Main configuration file for the "sdv-artifact registry" module.
-# Creates Google Artifact Registry repository with required IAM resources.
 
 data "google_project" "project" {}
 
@@ -23,6 +19,16 @@ resource "google_artifact_registry_repository" "docker_repo" {
   repository_id = var.repository_id
   format        = "DOCKER"
   description   = "Docker repository for Horizon SDV Dev"
+
+  # Note: Artifact Registry doesn't support force_destroy parameter
+  # To destroy a repository with images, you must either:
+  # 1. Delete all images first: gcloud artifacts docker images delete <IMAGE> --delete-tags
+  # 2. Delete the entire repository via gcloud: gcloud artifacts repositories delete <REPO> --location=<LOC> --quiet
+  # 3. Use lifecycle prevent_destroy = false (already set below) to allow Terraform destroy
+
+  lifecycle {
+    prevent_destroy = false # Allow Terraform to destroy this repository
+  }
 }
 
 resource "google_project_iam_member" "artifact_registry_writer" {

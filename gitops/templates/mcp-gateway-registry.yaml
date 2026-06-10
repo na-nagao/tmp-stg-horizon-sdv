@@ -15,23 +15,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mcp-gateway
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}mcp-gateway
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "8"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     path: gitops/apps/mcp-gateway-registry
     targetRevision: {{ .Values.spec.source.targetRevision }}
     helm:
       values: |
+        config:
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
         app:
-          name: mcp-gateway
-          namespace: mcp-gateway-registry
+          name: {{ .Values.config.namespacePrefix }}mcp-gateway
+          namespace: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
+        authentication:
+          keycloak:
+            internalUrl: "http://{{ .Values.config.namespacePrefix }}keycloak-keycloakx-http.{{ .Values.config.namespacePrefix }}keycloak.svc.cluster.local:8080/auth"
         externalUrls:
           #registry: "https://mcp.{{ .Values.config.domain }}"
           registry: "https://mcp.cdc.horizon-sdv-stg"
@@ -45,10 +50,62 @@ spec:
             targetRevision: {{ .Values.spec.source.targetRevision }}
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: mcp-gateway-registry
+    namespace: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated:
       prune: true
       selfHeal: true
+---
+# Allow MCP Gateway Registry egress to Keycloak
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mcp-gateway-egress-to-keycloak
+  namespace: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}keycloak
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloakx
+    ports:
+    - protocol: TCP
+      port: 8080   # Keycloak HTTP
+{{- end }}
+---
+# Allow MCP Gateway Registry egress to Gerrit MCP Server
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mcp-gateway-egress-to-gerrit-mcp-server
+  namespace: {{ .Values.config.namespacePrefix }}mcp-gateway-registry
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}gerrit
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
+    ports:
+    - protocol: TCP
+      port: 6322   # Gerrit MCP Server
+{{- end }}

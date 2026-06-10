@@ -76,10 +76,10 @@ pipelineJob('Android/Environment/ABFS/Server Administration/Update Spanner Backu
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/abfs/server_administration/update_spanner_backups/Jenkinsfile')

@@ -15,17 +15,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: landingpage
-  namespace: horizon
+  name: {{ .Values.config.namespacePrefix }}landingpage
+  namespace: {{ .Values.config.namespacePrefix }}horizon
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: landingpage
+      app.kubernetes.io/name: landingpage
   template:
     metadata:
       labels:
-        app: landingpage
+        app.kubernetes.io/name: landingpage
     spec:
       containers:
       - name: landingpage
@@ -37,11 +37,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: landingpage
-  namespace: horizon
+  name: {{ .Values.config.namespacePrefix }}landingpage
+  namespace: {{ .Values.config.namespacePrefix }}horizon
 spec:
   selector:
-    app: landingpage
+    app.kubernetes.io/name: landingpage
   ports:
     - protocol: TCP
       port: 80

@@ -21,23 +21,31 @@ pipelineJob('Android/Environment/Mirror/Create Mirror Infra') {
   description('''
     <br/><h3 style="margin-bottom: 10px;">Provision Mirror Infrastructure</h3>
 
-    <p>This job provisions the resources required for an NFS-based Mirror setup in your existing GCP project. Also, allows you to specify size of the mirror volume.</p>
+    <p>This job automates the provisioning of high-performance NFS storage for Git mirrors using Google Cloud Filestore.</p>
 
-    <p>It executes the following steps:</p>
+    <p><strong>What this job does:</strong></p>
     <ol>
-      <li>Creates a Filestore instance in the same region this platform is running.</li>
-      <li>Creates a Persistent Volume (PV) and Persistent Volume Claim (PVC) using the Filestore instance.</li>
-      <li>The size of the mirror volume is determined by the <strong><code>MIRROR_VOLUME_CAPACITY_GB</code></strong> parameter. Minimum size is 1024Gi (1Ti).</li>
+      <li>
+        <strong>Triggers Provisioning:</strong> Creates a Persistent Volume Claim (PVC) named <code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code> using the <code>${MIRROR_PRESET_FILESTORE_STORAGE_CLASS_NAME}</code> storage class.
+      </li>
+      <li>
+        <strong>Dynamic Infrastructure:</strong> Automatically spins up a <strong>GCP Filestore instance</strong> and binds it to a <strong>Persistent Volume (PV)</strong> within your current region.
+      </li>
+      <li>
+        <strong>Capacity Management:</strong> Sets the volume size based on the <code>MIRROR_VOLUME_CAPACITY_GB</code> parameter. 
+        <br><i>Note: The minimum supported size for Filestore is 1024 GiB (1 TiB).</i>
+      </li>
     </ol>
+
 
     <h4 style="margin-bottom: 10px;">Preset Properties (Non-configurable):</h4>
     <ul>
-      <li>DISK_NAME: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
-      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
-      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
+      <li>DISK_NAME: <i><code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
+      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
+      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
       <li>REGION: <i><code>${CLOUD_REGION}</code></i></li>
-      <li>NETWORK: <i><code>${AOSP_MIRROR_PRESET_NETWORK_NAME}</code></i></li>
-      <li>SUBNETWORK: <i><code>${AOSP_MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
+      <li>NETWORK: <i><code>${MIRROR_PRESET_NETWORK_NAME}</code></i></li>
+      <li>SUBNETWORK: <i><code>${MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
       <li>PROJECT: <i><code>${CLOUD_PROJECT}</code></i></li>
     </ul>
 
@@ -67,7 +75,7 @@ pipelineJob('Android/Environment/Mirror/Create Mirror Infra') {
       <ul>
         <li>Minimum size is 1024Gi (1Ti).</li>
         <li>This size is for the entire Filestore NFS volume, which can host multiple mirrors (each in its own unique directory).</li>
-        <li>Size CANNOT be changed once created. You will need to delete the existing volume and create a new one with the desired size.</li>
+        <li>Size can only be increased, in multiples of 256GB, but not decreased.</li>
         <li>Example: A full AOSP Mirror consumes around 1946Gi (1.9Ti) of storage. So 2048Gi of total volume capacity is recommended.</li>
       </ul>''')
       trim(true)
@@ -93,10 +101,10 @@ pipelineJob('Android/Environment/Mirror/Create Mirror Infra') {
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/mirror/create_mirror_infra/Jenkinsfile')

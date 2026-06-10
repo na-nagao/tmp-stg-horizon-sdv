@@ -16,7 +16,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   name: mtk-connect-route
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   labels:
     gateway: gke-gateway
   annotations:
@@ -25,7 +25,7 @@ spec:
   parentRefs:
     - kind: Gateway
       name: gke-gateway
-      namespace: gke-gateway
+      namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
 
 # add by n.nagao 
@@ -87,7 +87,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: mtk-connect-router-healthcheck
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -111,7 +111,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: mtk-connect-wamprouter-healthcheck
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -135,7 +135,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: mtk-connect-websockets-healthcheck
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -159,7 +159,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: mtk-connect-router-backendpolicy
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -174,7 +174,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: mtk-connect-wamprouter-backendpolicy
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -189,7 +189,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
   name: mtk-connect-websockets-backendpolicy
-  namespace: mtk-connect
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -199,3 +199,29 @@ spec:
     group: ""
     kind: Service
     name: mtk-connect-websockets
+---
+# Allow MTK Connect ingress from Gateway
+# Security is enforced by GCP Load Balancer and HTTPRoute configuration
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mtk-connect-ingress-from-gateway
+  namespace: {{ .Values.config.namespacePrefix }}mtk-connect
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mtk-connect
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8081  # router
+    - protocol: TCP
+      port: 8080  # wamprouter
+    - protocol: TCP
+      port: 8086  # websockets
+{{- end }}

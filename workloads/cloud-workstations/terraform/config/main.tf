@@ -22,6 +22,16 @@ locals {
   ]
 }
 
+locals {
+  # Build a structured table. If the data source only gives names, we can set status explicitly.
+  sdv_cloud_ws_zones = data.google_compute_zones.available.names
+}
+
+# Declare the zones data source
+data "google_compute_zones" "available" {
+  region = var.sdv_cloud_ws_region
+}
+
 // Get current project data
 data "google_project" "project_data" {
   project_id = var.sdv_cloud_ws_project_id
@@ -54,7 +64,6 @@ resource "google_project_iam_member" "sdv_cloud_ws_sa_roles" {
   member  = "serviceAccount:${google_service_account.sdv_cloud_ws_service_account.email}"
 }
 
-
 resource "google_workstations_workstation_config" "sdv_cloud_ws_config" {
   for_each = var.sdv_cloud_ws_configs
 
@@ -65,7 +74,12 @@ resource "google_workstations_workstation_config" "sdv_cloud_ws_config" {
 
   idle_timeout    = "${each.value.ws_idle_timeout}s"
   running_timeout = "${each.value.ws_running_timeout}s"
-  replica_zones   = each.value.ws_replica_zones
+
+# Use defaults replica_zones when missing or empty
+# Choose 2 first zones in region
+  replica_zones = (
+    each.value.ws_replica_zones == null || length(each.value.ws_replica_zones) == 0
+  ) ? [local.sdv_cloud_ws_zones[0], local.sdv_cloud_ws_zones[1]] : each.value.ws_replica_zones
 
   host {
     gce_instance {
@@ -144,7 +158,7 @@ resource "google_workstations_workstation_config_iam_binding" "sdv_cloud_ws_conf
   project                = var.sdv_cloud_ws_project_id
   location               = var.sdv_cloud_ws_region
   workstation_cluster_id = var.sdv_cloud_ws_cluster_name
-  workstation_config_id  = each.key
+  workstation_config_id  = google_workstations_workstation_config.sdv_cloud_ws_config[each.key].workstation_config_id
   role                   = "roles/workstations.admin"
   members                = distinct([for email in each.value.ws_admin_iam_members : "user:${email}"])
 }

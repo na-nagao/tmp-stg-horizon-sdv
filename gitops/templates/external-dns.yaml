@@ -15,12 +15,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: external-dns
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}external-dns
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: https://kubernetes-sigs.github.io/external-dns/
     chart: external-dns
@@ -32,8 +32,12 @@ spec:
           project: "{{ .Values.config.projectID }}"
         
         domainFilters:
+      {{- if .Values.config.isSubEnvironment }}
+          - "{{ regexReplaceAll "^[^.]+\\." .Values.config.domain "" }}"
+      {{- else }}
           - "{{ .Values.config.domain }}"
           #- cdc.horizon-sdv-stg # by nagao
+      {{- end }}
         sources:
           - gateway-httproute
         
@@ -41,12 +45,17 @@ spec:
           create: true
           name: external-dns-sa
           annotations:
-            iam.gke.io/gcp-service-account: "external-dns-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com"
+            iam.gke.io/gcp-service-account: "{{ .Values.config.namespacePrefix }}external-dns-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com"
         
         policy: sync
+
+        # Apex TXT prefix so ExternalDNS can own and update the apex A record
+        # (e.g. <env_name>.horizon-sdv.com). Without this, the apex gets no valid
+        # ownership TXT and is not updated when the LB IP changes.
+        txtPrefix: "%{record_type}-."
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-dns
+    namespace: {{ .Values.config.namespacePrefix }}external-dns
   syncPolicy:
     automated:
       prune: true

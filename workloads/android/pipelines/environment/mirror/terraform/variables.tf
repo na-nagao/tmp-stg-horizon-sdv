@@ -13,73 +13,57 @@
 # limitations under the License.
 
 // from jenkins env; same as horizon-sdv cluster value
-variable "sdv_aosp_mirror_project_id" {
+variable "sdv_mirror_project_id" {
   description = "GCP Project ID (existing) where Mirror is deployed."
   type        = string
 }
 
 // from jenkins env; same as horizon-sdv cluster value
-variable "sdv_aosp_mirror_region" {
+variable "sdv_mirror_region" {
   description = "GCP region where Mirror is deployed."
   type        = string
 }
 
-// from jenkins env; same as horizon-sdv cluster value
-variable "sdv_aosp_mirror_zone" {
-  description = "GCP zone where Mirror is deployed."
-  type        = string
-}
-
-// from jenkins env; same as horizon-sdv cluster value
-variable "sdv_aosp_mirror_network_name" {
-  description = "GCP network (VPC) name where Mirror is deployed."
-  type        = string
-}
-
-// from jenkins env; same as horizon-sdv cluster value
-variable "sdv_aosp_mirror_subnetwork_name" {
-  description = "GCP subnetwork (VPC subnet) name where Mirror is deployed."
-  type        = string
-}
-
-// new resource
-variable "sdv_aosp_mirror_filestore_instance_name" {
-  description = "Name of the Mirror Filestore instance."
-  type        = string
-  default     = "sdv-aosp-mirror-filestore-instance"
-}
-
-// new resource
-variable "sdv_aosp_mirror_filestore_share_name" {
-  description = "Name of the Mirror Filestore share, part of the Filestore instance."
-  type        = string
-  default     = "sdv_aosp_mirror_filestore_share"
-}
-
-// new resource
-variable "sdv_aosp_mirror_filestore_share_capacity_gb" {
-  description = "Capacity (in GB) of the Mirror Filestore share."
+// from jenkins env; new resource
+variable "sdv_mirror_pvc_capacity_gb" {
+  description = "Capacity (in GB) of the Mirror Filestore PVC."
   type        = number
   default     = 2048
+
+  # Minimum 1TB (1024GB) is required
+  validation {
+    condition     = var.sdv_mirror_pvc_capacity_gb >= 1024
+    error_message = "Minimum: 1024 GiB"
+  }
+  # Allow expansion of PVC but only multiples of 256GB
+  validation {
+    condition     = var.sdv_mirror_pvc_capacity_gb % 256 == 0
+    error_message = "The capacity for Mirror Filestore share must be in multiples of 256GB to allow for proper expansion."
+  }
+  # Maximum allowed capacity is 100TB (102400GB)
+  validation {
+    condition     = var.sdv_mirror_pvc_capacity_gb <= 102400
+    error_message = "Maximum capacity is 102400 GiB (100 TiB)."
+  }
 }
 
-// new resource
-variable "sdv_aosp_mirror_filestore_pv_name" {
-  description = "Name of the Persistent Volume for Mirror Filestore."
+// from jenkins env; should already exist as part of argocd sync
+variable "sdv_mirror_storage_class_name" {
+  description = "Name of the Storage Class for Mirror Filestore."
   type        = string
-  default     = "sdv-aosp-mirror-filestore-pv"
+  default     = "sdv-mirror-zonal-rwx"
 }
 
-// from jenkins env; same NS as android build pods in horizon-sdv cluster
-variable "sdv_aosp_mirror_filestore_pvc_namespace" {
+// using existing namespace, same as android build pods in horizon-sdv cluster
+variable "sdv_mirror_pvc_namespace" {
   description = "Namespace where the Persistent Volume Claim for Mirror Filestore is created."
   type        = string
   default     = "jenkins"
 }
 
 // new resource
-variable "sdv_aosp_mirror_filestore_pvc_name" {
+variable "sdv_mirror_pvc_name" {
   description = "Name of the Persistent Volume Claim for Mirror Filestore."
   type        = string
-  default     = "sdv-aosp-mirror-filestore-pvc"
+  default     = "sdv-mirror-filestore-pvc"
 }

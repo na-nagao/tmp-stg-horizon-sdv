@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 # Description:
-# Main platform deployment script which can either be run natively on Linux
-# or within the provided container environment.
+# Main deployment script to setup or destroy the platform using Terraform.
+# Handles both local and containerized execution environments.
+# Handles authentication, workspace setup, requirement checks, and Terraform execution.
+# Removes ArgoCD resources gracefully during destruction to avoid namespace hanging.
 
 set -e
 
@@ -33,10 +35,10 @@ NC='\033[0m'
 
 log_info() { echo -e "${GREEN}[INFO] $1${NC}"; }
 log_warn() { echo -e "${YELLOW}[WARN] $1${NC}"; }
-log_err()  { echo -e "${RED}[ERROR] $1${NC}"; }
+log_err() { echo -e "${RED}[ERROR] $1${NC}"; }
 
 version_ge() {
-    [ "$2" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+  [ "$2" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
 }
 
 # Workspace Setup 
@@ -46,21 +48,21 @@ setup_workspace() {
         log_info "Container environment detected. Setting up workspace..."
 
         # Extract Repo Details from terraform.tfvars
-        REPO_OWNER=$(grep '^\s*sdv_github_repo_owner\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
-        REPO_NAME=$(grep '^\s*sdv_github_repo_name\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
-        REPO_BRANCH=$(grep '^\s*sdv_github_repo_branch\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
-        GITHUB_PAT=$(grep '^\s*sdv_github_pat\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
+        REPO_OWNER=$(grep '^\s*sdv_git_repo_owner\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
+        REPO_NAME=$(grep '^\s*sdv_git_repo_name\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
+        REPO_BRANCH=$(grep '^\s*sdv_git_repo_branch\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
+        GIT_PAT=$(grep '^\s*sdv_git_pat\s*=' "$CONTAINER_CONFIG" | cut -d'"' -f2)
 
         # Clone repository
-        if [[ "$GITHUB_PAT" == "<OPTIONAL>" || "$GITHUB_PAT" == "<REQUIRED>" ]]; then GITHUB_PAT=""; fi
+        if [[ "$GIT_PAT" == "<OPTIONAL>" || "$GIT_PAT" == "<REQUIRED>" ]]; then GIT_PAT=""; fi
         
         log_info "Cloning ${REPO_OWNER}/${REPO_NAME} (Branch: ${REPO_BRANCH})..."
-        if [[ -n "$GITHUB_PAT" ]]; then
-            git clone -q -b "$REPO_BRANCH" "https://${GITHUB_PAT}@github.com/${REPO_OWNER}/${REPO_NAME}.git" .
+        if [[ -n "$GIT_PAT" ]]; then
+            git clone -q -b "$REPO_BRANCH" "https://${GIT_PAT}@github.com/${REPO_OWNER}/${REPO_NAME}.git" .
         else
             if ! git clone -q -b "$REPO_BRANCH" "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" . 2>/dev/null; then
                 log_warn "Public clone failed. Repository might be private."
-                read -s -p "Enter GitHub PAT: " MANUAL_PAT; echo ""
+                read -s -p "Enter Git PAT: " MANUAL_PAT; echo ""
                 if [[ -z "$MANUAL_PAT" ]]; then log_err "No token provided."; exit 1; fi
                 git clone -q -b "$REPO_BRANCH" "https://${MANUAL_PAT}@github.com/${REPO_OWNER}/${REPO_NAME}.git" .
             fi
@@ -87,146 +89,161 @@ setup_workspace() {
 }
 
 check_requirements() {
-    log_info "Checking requirements..."
+  log_info "Checking requirements..."
 
-    # Required Minimum Tool Versions
-    MIN_TF_VER="1.14.2"
-    MIN_KUBECTL_VER="1.34.3"
-    MIN_DOCKER_VER="29.1.3"
-    MIN_GCLOUD_VER="549.0.1"
+  # Required Minimum Tool Versions
+  MIN_TF_VER="1.14.2"
+  MIN_DOCKER_VER="29.1.3"
+  MIN_GCLOUD_VER="549.0.1"
 
-    # Terraform
-    if ! command -v terraform &> /dev/null; then log_err "Terraform not found"; exit 1; fi
-    TF_CURRENT=$(terraform version -json | grep -o '"terraform_version":"[^"]*"' | cut -d'"' -f4)
-    if [[ -z "$TF_CURRENT" ]]; then
-        TF_CURRENT=$(terraform version | head -n1 | cut -d ' ' -f 2 | tr -d 'v')
-    fi
-    if ! version_ge "$TF_CURRENT" "$MIN_TF_VER"; then
-        log_err "Terraform version $TF_CURRENT is too old. Required: >= $MIN_TF_VER"
+  # Terraform
+  if ! command -v terraform &>/dev/null; then
+    log_err "Terraform not found"
+    exit 1
+  fi
+  TF_CURRENT=$(terraform version -json | grep -o '"terraform_version":"[^"]*"' | cut -d'"' -f4)
+  if [[ -z "$TF_CURRENT" ]]; then
+    TF_CURRENT=$(terraform version | head -n1 | cut -d ' ' -f 2 | tr -d 'v')
+  fi
+  if ! version_ge "$TF_CURRENT" "$MIN_TF_VER"; then
+    log_err "Terraform version $TF_CURRENT is too old. Required: >= $MIN_TF_VER"
+    exit 1
+  fi
+  log_info "Terraform version $TF_CURRENT verified."
+
+  # Docker
+  if [[ ! -f /.dockerenv ]]; then
+    if command -v docker &>/dev/null; then
+      D_CURRENT=$(docker version --format '{{.Client.Version}}' 2>/dev/null)
+      if ! version_ge "$D_CURRENT" "$MIN_DOCKER_VER"; then
+        log_err "Docker version $D_CURRENT is too old. Required: >= $MIN_DOCKER_VER"
         exit 1
+      fi
+      log_info "Docker version $D_CURRENT verified."
     fi
-    log_info "Terraform version $TF_CURRENT verified."
+  fi
 
-    # Kubectl
-    if command -v kubectl &> /dev/null; then
-        K_CURRENT=$(kubectl version --client --output=json 2>/dev/null | grep -o '"gitVersion": "[^"]*"' | head -n1 | cut -d'"' -f4 | tr -d 'v')
-        if ! version_ge "$K_CURRENT" "$MIN_KUBECTL_VER"; then
-            log_err "Kubectl version $K_CURRENT is too old. Required: >= $MIN_KUBECTL_VER"
-            exit 1
-        fi
-        log_info "Kubectl version $K_CURRENT verified."
-    else
-        log_warn "Kubectl not found. Skipping version check (ensure it is installed if needed)."
+  # Gcloud Check
+  if command -v gcloud &>/dev/null; then
+    G_CURRENT=$(gcloud version --format='value(core)' 2>/dev/null)
+    if ! version_ge "$G_CURRENT" "$MIN_GCLOUD_VER"; then
+      log_err "Google Cloud SDK version $G_CURRENT is too old. Required: >= $MIN_GCLOUD_VER"
+      exit 1
     fi
-
-    # Docker
-    if [[ ! -f /.dockerenv ]]; then
-        if command -v docker &> /dev/null; then
-             D_CURRENT=$(docker version --format '{{.Client.Version}}' 2>/dev/null)
-             if ! version_ge "$D_CURRENT" "$MIN_DOCKER_VER"; then
-                 log_err "Docker version $D_CURRENT is too old. Required: >= $MIN_DOCKER_VER"
-                 exit 1
-             fi
-             log_info "Docker version $D_CURRENT verified."
-        fi
-    fi
-
-    # Gcloud Check
-    if command -v gcloud &> /dev/null; then
-        G_CURRENT=$(gcloud version --format='value(core)' 2>/dev/null)
-        if ! version_ge "$G_CURRENT" "$MIN_GCLOUD_VER"; then
-            log_err "Google Cloud SDK version $G_CURRENT is too old. Required: >= $MIN_GCLOUD_VER"
-            exit 1
-        fi
-        log_info "Gcloud version $G_CURRENT verified."
-    else
-        log_err "Google Cloud SDK not found."
-        exit 1
-    fi
+    log_info "Gcloud version $G_CURRENT verified."
+  else
+    log_err "Google Cloud SDK not found."
+    exit 1
+  fi
 }
 
 #  Authentication
 check_auth() {
-    # Define the path to the ADC file path (default)
-    ADC_FILE="$HOME/.config/gcloud/application_default_credentials.json"
+  # Define the path to the ADC file path (default)
+  ADC_FILE="$HOME/.config/gcloud/application_default_credentials.json"
 
-    # Check if the ADC file exists
-    if [[ ! -f "$ADC_FILE" ]]; then
-        log_warn "Application Default Credentials (ADC) file not found."
-        NEED_LOGIN=true
+  # Check if the ADC file exists
+  if [[ ! -f "$ADC_FILE" ]]; then
+    log_warn "Application Default Credentials (ADC) file not found."
+    NEED_LOGIN=true
+  else
+    if ! gcloud auth application-default print-access-token &>/dev/null; then
+      log_warn "ADC token is expired or invalid."
+      NEED_LOGIN=true
     else
-        if ! gcloud auth application-default print-access-token &>/dev/null; then
-             log_warn "ADC token is expired or invalid."
-             NEED_LOGIN=true
-        else
-             NEED_LOGIN=false
-        fi
+      NEED_LOGIN=false
     fi
+  fi
 
-    # Login if needed
-    if [[ "$NEED_LOGIN" == "true" ]]; then
-        log_info "Starting interactive login..."
-        
-        gcloud auth application-default login --no-launch-browser
-        gcloud auth login --no-launch-browser
-        
-        log_info "Authentication successful."
-    else
-        log_info "Authentication verified (Volume)."
-    fi
+  # Login if needed
+  if [[ "$NEED_LOGIN" == "true" ]]; then
+    log_info "Starting interactive login..."
+
+    gcloud auth application-default login --no-launch-browser
+    gcloud auth login --no-launch-browser
+
+    log_info "Authentication successful."
+  else
+    log_info "Authentication verified (Volume)."
+  fi
 }
 
 # Terraform Execution
 run_terraform() {
-    cd "$TF_DIR"
-    TFVARS_FILE="terraform.tfvars"
+  cd "$TF_DIR"
+  TFVARS_FILE="terraform.tfvars"
 
-    if grep -q "<REQUIRED>" "$TFVARS_FILE"; then
-        log_err "You still have '<REQUIRED>' placeholders in terraform.tfvars."
-        log_err "Please fill in Project ID, Secrets, and Keys."
-        exit 1
-    fi
-    
-    # Fetch required GCP Project details
-    BACKEND_BUCKET=$(awk -F'"' '/sdv_gcp_backend_bucket/ {print $2}' "$TFVARS_FILE")
-    PROJECT_ID=$(awk -F'"' '/sdv_gcp_project_id/ {print $2}' "$TFVARS_FILE")
-    LOCATION=$(awk -F'"' '/sdv_gcp_region/ {print $2}' "$TFVARS_FILE")
+  if grep -q "<REQUIRED>" "$TFVARS_FILE"; then
+    log_err "You still have '<REQUIRED>' placeholders in terraform.tfvars."
+    log_err "Please fill in Project ID, Secrets, and Keys."
+    exit 1
+  fi
 
-    if [[ -z "$BACKEND_BUCKET" || -z "$PROJECT_ID" || -z "$LOCATION" ]]; then
-        log_err "Failed to decode one or more required variables (Bucket, Project, or Region). Check terraform.tfvars."
-        exit 1
-    fi
+  # Fetch required GCP Project details
+  BACKEND_BUCKET=$(awk -F'"' '/sdv_gcp_backend_bucket/ {print $2}' "$TFVARS_FILE")
+  PROJECT_ID=$(awk -F'"' '/sdv_gcp_project_id/ {print $2}' "$TFVARS_FILE")
+  LOCATION=$(awk -F'"' '/sdv_gcp_region/ {print $2}' "$TFVARS_FILE")
 
-    log_info "Initializing Terraform (Bucket: $BACKEND_BUCKET, Project: $PROJECT_ID)..."
-    
-    terraform init -upgrade -reconfigure \
-        -backend-config="bucket=$BACKEND_BUCKET"
+  # Check if KMS encryption is enabled
+  KMS_ENABLED=$(awk '/sdv_enable_kms_encryption/ {print $3}' "$TFVARS_FILE" | tr -d ' ')
 
-    # Check for Destroy Mode
-    DESTROY_MODE=false
-    for arg in "$@"; do
-        if [[ "$arg" == "--destroy" || "$arg" == "-d" ]]; then DESTROY_MODE=true; fi
-    done
+  if [[ -z "$BACKEND_BUCKET" || -z "$PROJECT_ID" || -z "$LOCATION" ]]; then
+    log_err "Failed to decode one or more required variables (Bucket, Project, or Region). Check terraform.tfvars."
+    exit 1
+  fi
 
-    if [[ "$DESTROY_MODE" == "true" ]]; then
-        log_warn "!!! DESTRUCTION MODE ENABLED !!!"
+  # Handle KMS infrastructure if encryption is enabled
+    KMS_DIR="$(dirname "$TF_DIR")/kms"
+    if [[ "$KMS_ENABLED" == "true" ]] && [[ -d "$KMS_DIR" ]] && [[ ! "$SKIP_KMS" == "true" ]]; then
+        log_info "KMS encryption enabled - checking KMS infrastructure..."
         
-        # Check for Fleet Membership
-        if gcloud container fleet memberships describe "$GKE_CLUSTER" --project="$PROJECT_ID" --location="$LOCATION" &>/dev/null; then
-             log_info "Cleaning up Fleet Membership..."
-             gcloud container fleet memberships get-credentials "$GKE_CLUSTER" --project="$PROJECT_ID"
-             kubectl delete applications --all -n argocd --ignore-not-found
-             kubectl delete appprojects --all -n argocd --ignore-not-found
-             
-             log_info "Waiting 5 minutes for Kubernetes resource removal..."
-             sleep 5m
+        # Check if KMS resources exist in GCP (using explicit project/location flags)
+        if ! gcloud kms keyrings describe "gke-secrets-keyring" \
+            --location="$LOCATION" \
+            --project="$PROJECT_ID" &>/dev/null; then
+            
+            log_warn "KMS infrastructure not found in GCP. Deploying persistent KMS resources..."
+            
+            log_info "Deploying KMS infrastructure (one-time setup)..."
+            cd "$KMS_DIR"
+            
+            # Use absolute path to env tfvars (works in both local and container modes)
+            ENV_TFVARS_PATH="$TF_DIR/terraform.tfvars"
+            
+            terraform init -upgrade
+            terraform apply -auto-approve -var-file="$ENV_TFVARS_PATH"
+            
+            log_info "✓ KMS infrastructure deployed successfully"
+            cd "$TF_DIR"
+        else
+            log_info "✓ KMS infrastructure already exists in GCP"
         fi
-
-        terraform destroy -auto-approve
-    else
-        log_info "Running Terraform Apply..."
-        terraform apply -auto-approve
+    elif [[ "$KMS_ENABLED" == "false" ]]; then
+        log_info "KMS encryption disabled - skipping KMS infrastructure check"
     fi
+
+  log_info "Initializing Terraform (Bucket: $BACKEND_BUCKET, Project: $PROJECT_ID)..."
+
+  terraform init -upgrade -reconfigure \
+    -backend-config="bucket=$BACKEND_BUCKET"
+
+  # Check for Destroy Mode
+  DESTROY_MODE=false
+  for arg in "$@"; do
+    if [[ "$arg" == "--destroy" || "$arg" == "-d" ]]; then DESTROY_MODE=true; fi
+  done
+
+  if [[ "$DESTROY_MODE" == "true" ]]; then
+    log_warn "!!! DESTRUCTION MODE ENABLED !!!"
+
+    # Run Terraform destroy
+    log_info "Running Terraform destroy..."
+    log_info "Note: KMS resources (if any) will persist in GCP (separate state)"
+    terraform destroy -auto-approve
+  else
+    log_info "Running Terraform Apply..."
+    terraform apply -auto-approve
+  fi
 }
 
 setup_workspace

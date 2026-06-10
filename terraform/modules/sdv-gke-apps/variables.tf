@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,18 @@
 # Description
 # Configuration file containing variables for the "sdv-gke-apps" module.
 
-variable "github_auth_method" {
+variable "sub_environments" {
+  type        = list(string)
+  description = "List of sub-environments to be deployed."
+}
+
+variable "sub_env_branches" {
+  description = "Map of sub-environment name to Git branch for ArgoCD sync"
+  type        = map(string)
+  default     = {}
+}
+
+variable "git_auth_method" {
   description = "Authentication method for Argo CD: 'app' or 'pat'."
   type        = string
 }
@@ -65,23 +76,23 @@ variable "argocd_application_name" {
   default     = "horizon-sdv"
 }
 
-variable "github_repo_url" {
-  description = "The URL of the GitHub repository."
+variable "git_repo_url" {
+  description = "The URL of the git repository."
   type        = string
 }
 
-variable "github_repo_branch" {
+variable "git_repo_branch" {
   description = "The target branch for Argo CD."
   type        = string
 }
 
-variable "github_repo_owner" {
-  description = "Define the GitHub repository name"
+variable "git_repo_owner" {
+  description = "Git repository owner (user or organization name)"
   type        = string
 }
 
-variable "github_repo_name" {
-  description = "Define the GitHub repository name"
+variable "git_repo_name" {
+  description = "Git repository name"
   type        = string
 }
 
@@ -116,4 +127,9 @@ variable "images" {
     directory = string
     version   = string
   }))
+}
+variable "enable_network_policies" {
+  description = "Enable network policies for all workloads. When disabled, all network policies will be removed. Default is enabled."
+  type        = bool
+  default     = true
 }

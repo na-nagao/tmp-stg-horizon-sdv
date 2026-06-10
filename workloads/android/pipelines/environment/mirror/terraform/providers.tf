@@ -13,6 +13,6 @@
 # limitations under the License.
 
 provider "google" {
-  project = var.sdv_aosp_mirror_project_id
-  region  = var.sdv_aosp_mirror_region
+  project = var.sdv_mirror_project_id
+  region  = var.sdv_mirror_region
 }

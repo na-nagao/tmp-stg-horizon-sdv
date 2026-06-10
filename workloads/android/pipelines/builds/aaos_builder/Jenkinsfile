@@ -155,9 +155,9 @@ pipeline {
           volumeMounts:
             - mountPath: /aaos-cache
               name: aaos-cache
-            - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
               readOnly: true
-              name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         volumes:
           - name: aaos-cache
             ephemeral:
@@ -169,9 +169,9 @@ pipeline {
                       storage: ${STORAGE_SIZE}
                   accessModes:
                     - ReadWriteOnce
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
             persistentVolumeClaim:
-              claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         nodeSelector:
           workloadLabel: android
     """.stripIndent()
@@ -239,7 +239,7 @@ pipeline {
                     POST_REPO_COMMAND="${POST_REPO_COMMAND}" \
                     REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}" \
                     USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}" \
-                    MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}" \
+                    MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}" \
                     ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh
                   '''
                 }

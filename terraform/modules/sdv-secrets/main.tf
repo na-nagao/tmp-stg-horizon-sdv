@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,15 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# This module creates several secrets and give the access to the defined
-# Kubernetes Service Accounts.
 
 data "google_project" "project" {}
 
 locals {
-  sdv_secrets = var.gcp_secrets_map
+  sdv_secrets = nonsensitive(var.gcp_secrets_map)
 }
 
 # Use to debug the secret values
@@ -41,8 +37,8 @@ resource "google_secret_manager_secret" "sdv_gsms" {
   }
 }
 
-resource "google_secret_manager_secret_version" "sdv_gsmsv_use_github_value" {
-  for_each = { for idx, secret in local.sdv_secrets : idx => secret if secret.use_github_value }
+resource "google_secret_manager_secret_version" "sdv_gsmsv_use_git_value" {
+  for_each = { for idx, secret in local.sdv_secrets : idx => secret if secret.apply_value }
 
   secret      = google_secret_manager_secret.sdv_gsms[each.key].id
   secret_data = each.value.value
@@ -58,15 +54,15 @@ resource "google_secret_manager_secret_version" "sdv_gsmsv_use_github_value" {
   ]
 }
 
-resource "google_secret_manager_secret_version" "sdv_gsmsv_dont_use_github_value" {
-  for_each = { for idx, secret in local.sdv_secrets : idx => secret if !secret.use_github_value }
+resource "google_secret_manager_secret_version" "sdv_gsmsv_dont_use_git_value" {
+  for_each = { for idx, secret in local.sdv_secrets : idx => secret if !secret.apply_value }
 
   secret      = google_secret_manager_secret.sdv_gsms[each.key].id
   secret_data = each.value.value
 
   depends_on = [
     google_secret_manager_secret.sdv_gsms,
-    google_secret_manager_secret_version.sdv_gsmsv_use_github_value
+    google_secret_manager_secret_version.sdv_gsmsv_use_git_value
   ]
 }
 
@@ -79,8 +75,8 @@ resource "google_secret_manager_secret_iam_binding" "sdv_secret_accessor" {
   ]
 
   depends_on = [
-    google_secret_manager_secret_version.sdv_gsmsv_dont_use_github_value,
-    google_secret_manager_secret_version.sdv_gsmsv_use_github_value
+    google_secret_manager_secret_version.sdv_gsmsv_dont_use_git_value,
+    google_secret_manager_secret_version.sdv_gsmsv_use_git_value
   ]
 }
 

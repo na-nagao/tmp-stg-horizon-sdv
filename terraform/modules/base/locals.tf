@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Details required for configuring Kubernetes providers and container image
-# details along with version to be built and version to be deployed.
 
 locals {
   connect_gateway_url = format(
@@ -24,7 +20,7 @@ locals {
     module.sdv_gke_cluster.name
   )
 
-  common_nginx_version = "1.28.0-alpine"
+  common_nginx_version = "1.28.1-alpine3.23"
 
   images = {
     # build_version: version of container images to be built and pushed to Artifact Registry.
@@ -105,4 +101,11 @@ locals {
       deploy_version = "1.0.0"
     }
   }
+
+  # Merge Main + Sub-Envs into one map (for certificate manager domains)
+  cert_domains = merge(
+    { main = "${var.env_name}.${var.domain_name}" },
+    { for env in var.sdv_sub_environments : env => "${env}.${var.env_name}.${var.domain_name}" }
+  )
 }
+

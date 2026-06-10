@@ -126,6 +126,12 @@ function download_cts() {
 
 # Install CTS test harness on instance to avoid lengthy CTS runs.
 function cuttlefish_install_cts() {
+    if [ "$(uname -s)" = "Darwin" ]; then
+        echo -e "${ORANGE}This script is only supported on Linux${NC}"
+        echo -e "${ORANGE}   Ignore CTS download and install${NC}"
+        return 0;
+    fi
+
     echo -e "${GREEN}Installing CTS test harness ... ${NC}"
     local start=$SECONDS
 
@@ -240,14 +246,8 @@ function cuttlefish_cleanup() {
     sudo rm -rf "${HOME}"/.cache/bazel/
 }
 
-# Install the Cuttlefish packages.
-function cuttlefish_install() {
-    # Disable unattended-upgrades
-    disable_unattended_upgrades
-
-    # Install additional packages
-    cuttlefish_install_additional_packages
-
+# Build Cuttlefish
+function cuttlefish_build() {
     # Cuttlefish will request package restart, override mode.
     export NEEDRESTART_MODE=a
     # Prebuilts are only supported on X86_64 and main currently, fall through to build on error.
@@ -316,25 +316,33 @@ function cuttlefish_install() {
             # Clean up
             cuttlefish_cleanup
         fi
+
+        # Add groups to the user and also root.
+        declare -a cf_ids=("$(whoami)" "${JENKINS_USER}" "root")
+        for username in "${cf_ids[@]}"; do
+            cuttlefish_user_groups "${username}"
+        done
+
         echo -e "${GREEN}Cuttlefish Build process complete.${NC}"
     fi
+}
+
+# Install the Cuttlefish packages.
+function cuttlefish_install() {
+    # Disable unattended-upgrades
+    disable_unattended_upgrades
+
+    # Install additional packages
+    cuttlefish_install_additional_packages
 
     # Add jenkins user
     cuttlefish_jenkins_user
 
-    # Add groups to the user and also root.
-    declare -a cf_ids=("$(whoami)" "${JENKINS_USER}" "root")
-    for username in "${cf_ids[@]}"; do
-        cuttlefish_user_groups "${username}"
-    done
+    # Build cuttlefish
+    cuttlefish_build
 
     # Install CTS
-    if [ "$(uname -s)" = "Darwin" ]; then
-        echo -e "${ORANGE}This script is only supported on Linux${NC}"
-        echo -e "${ORANGE}   Ignore CTS download and install${NC}"
-    else
-        cuttlefish_install_cts
-    fi
+    cuttlefish_install_cts
 
     # Update curl on debian
     update_curl

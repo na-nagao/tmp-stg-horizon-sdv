@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Configuration file containing variables for the "sdv-network" module.
 
 variable "region" {
   description = "Define the Region"
@@ -50,6 +47,14 @@ variable "arm64_subnetwork" {
   type        = string
 }
 
+variable "pods_range" {
+  type = string
+}
+
+variable "services_range" {
+  type = string
+}
+
 variable "arm64_pods_range" {
   type = string
 }
@@ -57,3 +62,4 @@ variable "arm64_pods_range" {
 variable "arm64_services_range" {
   type = string
 }
+

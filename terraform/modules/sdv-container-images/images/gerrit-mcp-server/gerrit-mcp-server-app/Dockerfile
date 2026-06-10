@@ -13,14 +13,16 @@
 # limitations under the License.
 
 # --- Stage 1: Build Stage (for installing dependencies) ---
-FROM python:3.12-slim-bookworm AS build
+FROM --platform=linux/amd64 python:3.12-slim-bookworm AS build
 
-# Install necessary tools
-RUN apt-get update && apt-get install -y \
+# Add security repository and upgrade all packages to fix CVEs
+RUN echo "deb http://security.debian.org/debian-security bookworm-security main" > /etc/apt/sources.list.d/security.list && \
+    apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
     curl \
     git \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -33,13 +35,15 @@ RUN chmod +x configure.sh &&\
     ./configure.sh
 
 # --- Stage 2: Final Runtime Image ---
-FROM python:3.12-slim-bookworm AS final
+FROM --platform=linux/amd64 python:3.12-slim-bookworm AS final
 
-# Install required system tools (curl for REST API calls)
-RUN apt-get update && apt-get install -y \
+# Add security repository and upgrade all packages to fix CVEs
+RUN echo "deb http://security.debian.org/debian-security bookworm-security main" > /etc/apt/sources.list.d/security.list && \
+    apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
     curl \
     vim \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser

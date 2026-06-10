@@ -35,18 +35,18 @@ pipelineJob('Android/Environment/Mirror/Delete Mirror') {
 
     <h4 style="margin-bottom: 10px;">Preset Properties (Non-configurable):</h4>
     <ul>
-      <li>DISK_NAME: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
-      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
-      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
+      <li>DISK_NAME: <i><code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i></li>
+      <li>DISK_MOUNT_PATH_IN_CONTAINER: <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}</code></i></li>
+      <li>MIRROR_ROOT_SUBDIRECTORY_IN_CONTAINER (All mirrors live inside this directory): <i><code>${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}</code></i></li>
       <li>REGION: <i><code>${CLOUD_REGION}</code></i></li>
-      <li>NETWORK: <i><code>${AOSP_MIRROR_PRESET_NETWORK_NAME}</code></i></li>
-      <li>SUBNETWORK: <i><code>${AOSP_MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
+      <li>NETWORK: <i><code>${MIRROR_PRESET_NETWORK_NAME}</code></i></li>
+      <li>SUBNETWORK: <i><code>${MIRROR_PRESET_SUBNETWORK_NAME}</code></i></li>
       <li>PROJECT: <i><code>${CLOUD_PROJECT}</code></i></li>
     </ul>
 
     <h4 style="margin-bottom: 10px;">Notes</h4>
     <ul>
-      <li>If the mirror PVC `<i><code>${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i>` does NOT exists, this job will fail.</li>
+      <li>If the mirror PVC `<i><code>${MIRROR_PRESET_FILESTORE_PVC_NAME}</code></i>` does NOT exists, this job will fail.</li>
       <li>If the specified mirror directory does not exist, this job will fail.</li>
       <li>The periodic schedule for job `<i><code>Mirror > Sync Mirror</code></i>`, if set, must be manually edited or removed via that job configuration.</li>
     </ul>
@@ -96,7 +96,7 @@ pipelineJob('Android/Environment/Mirror/Delete Mirror') {
       name('DELETE_ENTIRE_MIRROR_SETUP')
       defaultValue(false)
       description('''Optional: <strong>[CAUTION] If set to true, deletes the entire Mirror setup including all infrastructure and data.</strong><br/>
-      If set to false, only the specified mirror directory will be deleted from the Filestore instance, rest will remain intact.<br/>
+      If set to false, only the specified mirror directory will be deleted from the underlying storage, rest will remain intact.<br/>
       <b>Note:</b> When set to true, the <code>MIRROR_DIR_TO_DELETE</code> parameter is ignored.''')
     }
   }
@@ -120,10 +120,10 @@ pipelineJob('Android/Environment/Mirror/Delete Mirror') {
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/mirror/delete_mirror/Jenkinsfile')

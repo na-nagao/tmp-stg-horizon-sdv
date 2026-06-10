@@ -17,11 +17,12 @@ config:
     android:
       cuttlefish:
         tag: "v1350"
-      aospMirror:
+      mirror:
         workloadEnv:
-          image: "horizon-sdv/aosp-mirror-workloads/env"
-        mirrorPresets:
-          filestorePVCName: "sdv-aosp-mirror-filestore-pvc"
+          image: "horizon-sdv/mirror-workloads/env"
+        preset:
+          storageClassName: "sdv-mirror-zonal-rwx"
+          filestorePVCName: "sdv-mirror-filestore-pvc"
           filestorePVCMountPathInContainer: "/mnt/mirror-filestore-pvc"
           mirrorRootSubdirectoryName: "horizon-mirrors"
           network: "sdv-network"
@@ -462,11 +463,11 @@ controller:
                 - key: "GERRIT_CREDENTIALS_ID"
                   value: "jenkins-gerrit-http-password"
                 - key: "HORIZON_DOMAIN"
-                  #value: {{ .Values.config.domain }} change by nagao
                   value: cdc.horizon-sdv-stg
-                - key: "HORIZON_GITHUB_URL"
+                  #value: {{ .Values.config.domain }}
+                - key: "HORIZON_GIT_URL"
                   value: {{ .Values.config.workloads.android.url }}
-                - key: "HORIZON_GITHUB_BRANCH"
+                - key: "HORIZON_GIT_BRANCH"
                   value: {{ .Values.config.workloads.android.branch }}
                 - key: "ANDROID_BUILD_BUCKET_ROOT_NAME"
                   value: {{ .Values.config.projectID }}-aaos
@@ -491,18 +492,20 @@ controller:
                 - key: "UTILITIES_DOCKER_ARTIFACT_PATH_NAME"
                   value: "horizon-sdv/gcp-utilities"
 
-                - key: "AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME"
-                  value: {{ .Values.config.workloads.android.aospMirror.workloadEnv.image }}
-                - key: "AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME"
-                  value: {{ .Values.config.workloads.android.aospMirror.mirrorPresets.filestorePVCName }}
-                - key: "AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER"
-                  value: {{ .Values.config.workloads.android.aospMirror.mirrorPresets.filestorePVCMountPathInContainer }}
-                - key: "AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME"
-                  value: {{ .Values.config.workloads.android.aospMirror.mirrorPresets.mirrorRootSubdirectoryName }}
-                - key: "AOSP_MIRROR_PRESET_NETWORK_NAME"
-                  value: {{ .Values.config.workloads.android.aospMirror.mirrorPresets.network }}
-                - key: "AOSP_MIRROR_PRESET_SUBNETWORK_NAME"
-                  value: {{ .Values.config.workloads.android.aospMirror.mirrorPresets.subnetwork }}
+                - key: "MIRROR_WORKLOADS_ENV_IMAGE_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.workloadEnv.image }}
+                - key: "MIRROR_PRESET_FILESTORE_STORAGE_CLASS_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.preset.storageClassName }}
+                - key: "MIRROR_PRESET_FILESTORE_PVC_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.preset.filestorePVCName }}
+                - key: "MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER"
+                  value: {{ .Values.config.workloads.android.mirror.preset.filestorePVCMountPathInContainer }}
+                - key: "MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.preset.mirrorRootSubdirectoryName }}
+                - key: "MIRROR_PRESET_NETWORK_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.preset.network }}
+                - key: "MIRROR_PRESET_SUBNETWORK_NAME"
+                  value: {{ .Values.config.workloads.android.mirror.preset.subnetwork }}
 
                 - key: "CLOUD_WS_WORKLOADS_ENV_IMAGE_NAME"
                   value: {{ .Values.config.workloads.cloudWorkstations.workloadEnv.image }}
@@ -557,7 +560,7 @@ controller:
                       git {
                         remote {
                           url('{{ .Values.config.workloads.android.url }}')
-                          credentials('jenkins-github-creds')
+                          credentials('jenkins-git-creds')
                         }
                         branch('*/{{ .Values.config.workloads.android.branch }}')
                       }
@@ -590,7 +593,7 @@ controller:
                   gerritAuthKeyFile: "/run/secrets/additional/jenkins-gerrit-ssh-private-key-privateKey"
                   #gerritFrontEndUrl: "https://{{ .Values.config.domain }}/gerrit/" # change by nagao
                   gerritFrontEndUrl: "https://cdc.horizon-sdv-stg/gerrit/"
-                  gerritHostName: "gerrit-service.gerrit.svc.cluster.local"
+                  gerritHostName: "gerrit-service.{{ .Values.config.namespacePrefix }}gerrit.svc.cluster.local"
                   gerritUserName: "gerrit-admin"
                   useRestApi: false
           timestamper:
@@ -607,9 +610,9 @@ controller:
                   scm:
                     github:
                       configuredByUrl: true
-                      credentialsId: "jenkins-github-creds"
-                      repoOwner: "{{ .Values.github.repoOwner }}"
-                      repository: "{{ .Values.github.repoName }}"
+                      credentialsId: "jenkins-git-creds"
+                      repoOwner: "{{ .Values.git.repoOwner }}"
+                      repository: "{{ .Values.git.repoName }}"
                       repositoryUrl: "{{ .Values.config.workloads.android.url }}"
                       traits:
                       - gitHubBranchDiscovery:

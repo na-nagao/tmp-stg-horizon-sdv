@@ -15,7 +15,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: gerrit-rwx
+  name: {{ .Values.config.namespacePrefix }}gerrit-rwx
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 provisioner: filestore.csi.storage.gke.io
@@ -24,12 +24,13 @@ volumeBindingMode: Immediate
 parameters:
   tier: standard
   network: sdv-network
+  reserved-ipv4-cidr: "10.152.0.0/24"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: gerrit-shared-git
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -38,21 +39,21 @@ spec:
   resources:
     requests:
       storage: 1Ti
-  storageClassName: gerrit-rwx
+  storageClassName: {{ .Values.config.namespacePrefix }}gerrit-rwx
   volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: gerrit
-  namespace: gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: gerrit
+  name: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 rules:
@@ -63,7 +64,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: gerrit
+  name: {{ .Values.config.namespacePrefix }}gerrit
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 roleRef:
@@ -73,19 +74,19 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: gerrit
-    namespace: gerrit
+    namespace: {{ .Values.config.namespacePrefix }}gerrit
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gerrit
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}gerrit
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: {{ .Values.spec.source.repoURL }}
     targetRevision: {{ .Values.spec.source.targetRevision }}
@@ -94,6 +95,7 @@ spec:
         config:
           #domain: {{ .Values.config.domain }}
           domain: cdc.horizon-sdv-stg
+          namespacePrefix: {{ .Values.config.namespacePrefix }}
         spec:
           source:
             repoURL: {{ .Values.spec.source.repoURL }}
@@ -101,8 +103,228 @@ spec:
     path: gitops/apps/gerrit
   destination:
     server: https://kubernetes.default.svc
-    namespace: gerrit-operator
+    namespace: {{ .Values.config.namespacePrefix }}gerrit-operator
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
     automated: {}
+---
+# Allow Gerrit ingress from Jenkins
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-ingress-from-jenkins
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gerrit
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}jenkins
+    ports:
+    - protocol: TCP
+      port: 8080   # HTTP API
+    - protocol: TCP
+      port: 29418  # SSH Git protocol
+
+{{- end }}
+---
+# Allow Gerrit ingress from Gerrit Operator
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-ingress-from-gerrit-operator
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector: {}  # Allow gerrit-operator to access all pods in gerrit namespace
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gerrit-operator
+    ports:
+    - protocol: TCP
+      port: 8080   # HTTP API for health checks and management
+    - protocol: TCP
+      port: 29418  # SSH port (may be needed for initialization)
+
+{{- end }}
+---
+# Allow Gerrit ingress from Gerrit MCP Server
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-ingress-from-gerrit-mcp-server
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gerrit
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Values.config.namespacePrefix }}gerrit-mcp-server
+    ports:
+    - protocol: TCP
+      port: 8080   # HTTP API
+
+{{- end }}
+---
+# Allow Gerrit to access Zookeeper
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-egress-to-zookeeper
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gerrit
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}zookeeper
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: zookeeper
+    ports:
+    - protocol: TCP
+      port: 2181   # Zookeeper client
+
+{{- end }}
+---
+# Allow Gerrit to access Keycloak
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gerrit-egress-to-keycloak
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gerrit
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.config.namespacePrefix }}keycloak
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: keycloakx
+    ports:
+    - protocol: TCP
+      port: 8080   # OAuth/OIDC
+{{- end }}
+---
+# Allow Gerrit post-jobs to access Gerrit
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-gerrit
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}gerrit-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: gerrit
+    ports:
+    - protocol: TCP
+      port: 8080   # Gerrit HTTP API
+    - protocol: TCP
+      port: 29418  # Gerrit SSH
+{{- end }}
+---
+# Allow Gerrit post-jobs internet egress
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-internet
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}gerrit-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443    # HTTPS
+    - protocol: TCP
+      port: 80     # HTTP
+{{- end }}
+---
+# Allow Gerrit post-jobs to access Kubernetes API
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-post-jobs-egress-to-kube-api
+  namespace: {{ .Values.config.namespacePrefix }}gerrit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      job-name: {{ .Values.config.namespacePrefix }}gerrit-post-job
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443    # Kubernetes API
+    - protocol: TCP
+      port: 6443   # Kubernetes API (alternative port)
+
+{{- end }}

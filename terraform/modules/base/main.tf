@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "base" module.
-# Makes use of other modules to provision various resources.
 
 data "google_project" "project" {}
 
@@ -80,6 +76,8 @@ module "sdv_network" {
   subnetwork           = var.sdv_subnetwork
   region               = var.sdv_region
   router_name          = var.sdv_network_egress_router_name
+  pods_range           = var.pods_range
+  services_range       = var.services_range
   enable_arm64         = var.enable_arm64
   arm64_region         = var.arm64_region
   arm64_subnetwork     = var.arm64_subnetwork
@@ -127,21 +125,27 @@ module "sdv_gke_cluster" {
     module.sdv_network,
     module.sdv_gcs,
     module.sdv_gcs_openbsw,
-    module.sdv_container_images
+    module.sdv_container_images,
+    module.sdv_certificate_manager,
+    module.sdv_ssl_policy,
+    module.sdv_kms
   ]
 
   project_id      = data.google_project.project.project_id
   cluster_name    = var.sdv_cluster_name
+  cluster_version = var.sdv_cluster_version
   location        = var.sdv_location
   network         = var.sdv_network
   subnetwork      = var.sdv_subnetwork
   service_account = var.sdv_gcp_compute_sa_email
 
   # Default node pool configuration
-  node_pool_name = var.sdv_cluster_node_pool_name
-  machine_type   = var.sdv_cluster_node_pool_machine_type
-  node_count     = var.sdv_cluster_node_pool_count
-  node_locations = var.sdv_cluster_node_locations
+  node_pool_name           = var.sdv_cluster_node_pool_name
+  machine_type             = var.sdv_cluster_node_pool_machine_type
+  node_count               = var.sdv_cluster_node_pool_count
+  node_locations           = var.sdv_cluster_node_locations
+  node_pool_min_node_count = var.sdv_cluster_node_pool_min_node_count
+  node_pool_max_node_count = var.sdv_cluster_node_pool_max_node_count
 
   # build node pool configuration
   build_node_pool_name           = var.sdv_build_node_pool_name
@@ -156,6 +160,7 @@ module "sdv_gke_cluster" {
   abfs_build_node_pool_machine_type   = var.sdv_abfs_build_node_pool_machine_type
   abfs_build_node_pool_min_node_count = var.sdv_abfs_build_node_pool_min_node_count
   abfs_build_node_pool_max_node_count = var.sdv_abfs_build_node_pool_max_node_count
+  abfs_build_node_pool_version        = var.sdv_abfs_build_node_pool_version
 
   # OpenBSW node pool configuration
   openbsw_build_node_pool_name           = var.sdv_openbsw_build_node_pool_name
@@ -163,6 +168,10 @@ module "sdv_gke_cluster" {
   openbsw_build_node_pool_machine_type   = var.sdv_openbsw_build_node_pool_machine_type
   openbsw_build_node_pool_min_node_count = var.sdv_openbsw_build_node_pool_min_node_count
   openbsw_build_node_pool_max_node_count = var.sdv_openbsw_build_node_pool_max_node_count
+
+  # KMS encryption for GKE secrets
+  enable_kms_encryption = var.sdv_enable_kms_encryption
+  kms_crypto_key_id     = local.kms_crypto_key_id
 }
 
 module "sdv_gke_apps" {
@@ -184,14 +193,19 @@ module "sdv_gke_apps" {
   gcp_backend_bucket = var.gcp_backend_bucket_name
   gcp_registry_id    = var.sdv_artifact_registry_repository_id
 
-  github_repo_url    = "https://github.com/${var.github_repo_owner}/${var.github_repo_name}"
-  github_auth_method = var.github_auth_method
-  github_repo_owner  = var.github_repo_owner
-  github_repo_name   = var.github_repo_name
-  github_repo_branch = var.github_repo_branch
+  git_repo_url    = "https://github.com/${var.git_repo_owner}/${var.git_repo_name}"
+  git_auth_method = var.git_auth_method
+  git_repo_owner  = var.git_repo_owner
+  git_repo_name   = var.git_repo_name
+  git_repo_branch = var.git_repo_branch
 
-  domain_name    = var.github_domain_name
-  subdomain_name = var.github_env_name
+  domain_name      = var.domain_name
+  subdomain_name   = var.env_name
+  sub_environments = var.sdv_sub_environments
+  sub_env_branches = var.sdv_sub_env_branches
+
+  # Network policies configuration
+  enable_network_policies = var.sdv_enable_network_policies
 
   images = {
     for name, image in local.images : name => {
@@ -202,10 +216,10 @@ module "sdv_gke_apps" {
 }
 
 module "sdv_certificate_manager" {
-  source = "../sdv-certificate-manager"
+  source   = "../sdv-certificate-manager"
 
-  name   = var.sdv_ssl_certificate_name
-  domain = var.sdv_ssl_certificate_domain
+  name    = var.sdv_ssl_certificate_name
+  domains = local.cert_domains
 
   depends_on = [
     module.sdv_apis,
@@ -215,9 +229,10 @@ module "sdv_certificate_manager" {
 module "sdv_dns_zone" {
   source = "../sdv-dns-zone"
 
-  zone_name       = "${var.github_env_name}-${var.sdv_ssl_certificate_name}-com"
-  dns_name        = "${var.github_env_name}.${var.github_domain_name}."
-  dns_auth_record = module.sdv_certificate_manager.dns_auth_record
+  zone_name        = "${var.env_name}-${var.sdv_ssl_certificate_name}-com"
+  dns_name         = "${var.env_name}.${var.domain_name}."
+  dns_auth_records = module.sdv_certificate_manager.dns_auth_records
+  dnssec_enabled   = var.sdv_dns_dnssec_enabled
 
   depends_on = [
     module.sdv_certificate_manager
@@ -232,6 +247,24 @@ module "sdv_ssl_policy" {
   profile         = "RESTRICTED"
 }
 
+# KMS Encryption for GKE Secrets
+# KMS resources (keyring and key) are always created and never destroyed
+# enable_kms_encryption controls whether GKE uses the key and IAM binding
+module "sdv_kms" {
+  source = "../sdv-kms"
+
+  project_id                = data.google_project.project.project_id
+  location                  = var.sdv_location
+  keyring_name              = "gke-secrets-keyring"
+  crypto_key_name           = "gke-secrets-key"
+  gke_service_account_email = "service-${data.google_project.project.number}@container-engine-robot.iam.gserviceaccount.com"
+  enable_kms_encryption     = var.sdv_enable_kms_encryption
+}
+
+locals {
+  kms_crypto_key_id = var.sdv_enable_kms_encryption ? module.sdv_kms.crypto_key_id : ""
+}
+
 module "sdv_sa_key_secret_gce_creds" {
   source = "../sdv-sa-key-secret"
 
@@ -240,12 +273,18 @@ module "sdv_sa_key_secret_gce_creds" {
   location           = var.sdv_location
   project_id         = data.google_project.project.project_id
 
-  gke_access = [
-    {
-      ns = "jenkins"
+  gke_access = concat(
+    [
+      {
+        ns = "jenkins"
+        sa = "jenkins-sa"
+      }
+    ],
+    [for env in var.sdv_sub_environments : {
+      ns = "${env}-jenkins"
       sa = "jenkins-sa"
-    }
-  ]
+    }]
+  )
 
   depends_on = [
     module.sdv_wi
@@ -311,16 +350,22 @@ module "sdv_iam_service_account_user" {
 # allow tcp port 22 for compute_sa
 
 resource "google_compute_firewall" "allow_tcp_22" {
-  name    = "cuttflefish-allow-tcp-22"
-  network = var.sdv_network
+  name     = "cuttlefish-allow-tcp-22"
+  network  = var.sdv_network
+  priority = 900 # Higher priority than deny rule to ensure IAP SSH works
 
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
 
-  #source_ranges = ["10.1.0.0/24"]
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = concat(
+    ["35.235.240.0/20"], # Google Identity-Aware Proxy (IAP): required for IAP SSH
+    [var.nodes_range],   # GKE node primary subnet (e.g. Jenkins agent SNAT'd to node)
+    [var.pods_range],    # GKE pods secondary range
+    var.enable_arm64 ? [var.arm64_nodes_range] : [],
+    var.enable_arm64 ? [var.arm64_pods_range] : [] # ARM64 pods secondary range
+  )
 
   target_service_accounts = [var.sdv_gcp_compute_sa_email]
 
@@ -328,4 +373,184 @@ resource "google_compute_firewall" "allow_tcp_22" {
     module.sdv_network
   ]
 
+}
+
+# ============================================
+# Explicit Deny Rules
+# Block SSH and RDP to satisfy security scanner
+# 
+# Priority ordering (lower number = higher priority, evaluated first):
+# 900: allow_tcp_22 (Cuttlefish IAP SSH) - EVALUATED FIRST
+# 900: allow_google_health_checks_gateway (Google health checks)
+# 950: deny_ssh_rdp_security_compliance (Deny SSH/RDP) - EVALUATED LAST
+#
+# This ensures legitimate SSH access via IAP and health checks work,
+# while blocking all other SSH/RDP attempts.
+# ============================================
+
+# First, allow Google health checks on all ports (higher priority)
+# This ensures health checks continue to work even if they use uncommon ports
+resource "google_compute_firewall" "allow_google_health_checks_gateway" {
+  name      = "allow-google-health-checks-gateway"
+  network   = var.sdv_network
+  direction = "INGRESS"
+  priority  = 900 # Higher priority than deny rule (950)
+
+  allow {
+    protocol = "tcp"
+  }
+
+  source_ranges = [
+    "130.211.0.0/22", # Google Cloud health check IPs (legacy)
+    "35.191.0.0/16"   # Google Cloud health check IPs (current)
+  ]
+
+  description = "Allow Google health checks from load balancer IPs (required for Gateway health checks)"
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Then, explicitly deny SSH (port 22) and RDP (port 3389) from all other sources
+# This rule has lower priority (950) than allow rules (900), so legitimate traffic
+# is allowed first before this deny rule is evaluated
+resource "google_compute_firewall" "deny_ssh_rdp_security_compliance" {
+  name      = "deny-ssh-rdp-security-compliance"
+  network   = var.sdv_network
+  direction = "INGRESS"
+  priority  = 950 # Lower priority than allow rules (900)
+
+  deny {
+    protocol = "tcp"
+    ports    = ["22", "3389"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+
+  description = "Explicit deny SSH/RDP. Legitimate IAP SSH (priority 900) and Google health checks (priority 900) evaluated first and allowed."
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Allow internal VPC traffic (all protocols)
+resource "google_compute_firewall" "allow_internal_egress" {
+  name      = "allow-internal-egress"
+  network   = var.sdv_network
+  direction = "EGRESS"
+  priority  = 1000
+
+  allow {
+    protocol = "tcp"
+  }
+
+  allow {
+    protocol = "udp"
+  }
+
+  allow {
+    protocol = "icmp"
+  }
+
+  destination_ranges = concat(
+    ["10.0.0.0/8"],                                 # Internal VPC ranges
+    [var.pods_range],                               # GKE pods range
+    [var.services_range],                           # GKE services range
+    var.enable_arm64 ? [var.arm64_pods_range] : [], # ARM64 pods range if enabled
+    var.enable_arm64 ? [var.arm64_services_range] : []
+  )
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Allow egress to Google APIs via Private Google Access (HTTPS only)
+resource "google_compute_firewall" "allow_google_apis_egress" {
+  name      = "allow-google-apis-egress"
+  network   = var.sdv_network
+  direction = "EGRESS"
+  priority  = 1001
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  destination_ranges = [
+    "199.36.153.8/30", # Google Private Access - restricted.googleapis.com
+    "199.36.153.4/30"  # Google Private Access - private.googleapis.com
+  ]
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Allow DNS egress for name resolution
+resource "google_compute_firewall" "allow_dns_egress" {
+  name      = "allow-dns-egress"
+  network   = var.sdv_network
+  direction = "EGRESS"
+  priority  = 1002
+
+  allow {
+    protocol = "tcp"
+    ports    = ["53"]
+  }
+
+  allow {
+    protocol = "udp"
+    ports    = ["53"]
+  }
+
+  destination_ranges = [
+    "169.254.169.254/32", # Google Cloud DNS (metadata server)
+    "35.199.192.0/19",    # Cloud DNS servers
+    "8.8.8.8/32",         # Google Public DNS primary
+    "8.8.4.4/32"          # Google Public DNS secondary
+  ]
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Allow HTTP/HTTPS to internet (traffic goes through Cloud NAT)
+resource "google_compute_firewall" "allow_http_https_egress" {
+  name      = "allow-http-https-internet-egress"
+  network   = var.sdv_network
+  direction = "EGRESS"
+  priority  = 1003
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  destination_ranges = ["0.0.0.0/0"]
+
+  depends_on = [
+    module.sdv_network
+  ]
+}
+
+# Default deny all other egress traffic
+resource "google_compute_firewall" "deny_all_egress" {
+  name      = "deny-all-egress"
+  network   = var.sdv_network
+  direction = "EGRESS"
+  priority  = 65534
+
+  deny {
+    protocol = "all"
+  }
+
+  destination_ranges = ["0.0.0.0/0"]
+
+  depends_on = [
+    module.sdv_network
+  ]
 }

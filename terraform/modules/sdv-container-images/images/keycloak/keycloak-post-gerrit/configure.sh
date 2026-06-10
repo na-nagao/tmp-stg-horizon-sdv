@@ -26,7 +26,7 @@ npm install
 node keycloak.mjs
 SECRET=$(cat client-gerrit.json | jq -r ".secret")
 
-curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X GET ${APISERVER}/api/v1/namespaces/gerrit/secrets/gerrit-secure-config >current.json
+curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X GET ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets/gerrit-secure-config >current.json
 CURRENT_SECURE_CONFIG=$(jq -r '.data."secure.config"' current.json)
 CURRENT_KEY=$(jq -r '.data.ssh_host_ecdsa_key' current.json)
 CURRENT_PUBKEY=$(jq -r '.data."ssh_host_ecdsa_key.pub"' current.json)
@@ -58,7 +58,8 @@ if [ $UPDATE_NEEDED == true ]; then
   sed -i "s/##SECURE_CONFIG##/${SECURE_CONFIG}/g" ./secret.json
   sed -i "s/##SSH_KEY##/${SSH_KEY}/g" ./secret.json
   sed -i "s/##SSH_KEY_PUB##/${SSH_KEY_PUB}/g" ./secret.json
+  sed -i "s/##NAMESPACE##/${NAMESPACE_PREFIX}gerrit/g" ./secret.json
 
-  curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/gerrit/secrets/gerrit-secure-config
-  curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/gerrit/secrets -d @secret.json
+  curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets/gerrit-secure-config
+  curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST ${APISERVER}/api/v1/namespaces/${NAMESPACE_PREFIX}gerrit/secrets -d @secret.json
 fi

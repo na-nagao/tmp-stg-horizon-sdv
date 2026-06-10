@@ -15,7 +15,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: postgresql-rwo
+  name: {{ .Values.config.namespacePrefix }}postgresql-rwo
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 provisioner: pd.csi.storage.gke.io
@@ -28,8 +28,8 @@ parameters:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgresql-data
-  namespace: keycloak
+  name: {{ .Values.config.namespacePrefix }}postgresql-data
+  namespace: {{ .Values.config.namespacePrefix }}keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -38,5 +38,5 @@ spec:
   resources:
     requests:
       storage: 8Gi
-  storageClassName: postgresql-rwo
+  storageClassName: {{ .Values.config.namespacePrefix }}postgresql-rwo
   volumeMode: Filesystem

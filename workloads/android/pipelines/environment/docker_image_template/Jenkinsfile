@@ -45,9 +45,9 @@ pipeline {
             privileged: true
           resources:
             limits:
-              memory: 8Gi
+              memory: 4Gi
             requests:
-              memory: 8Gi
+              memory: 4Gi
       """.stripIndent()
   }
 

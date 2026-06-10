@@ -21,11 +21,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}-auth-server
+      app.kubernetes.io/name: {{ .Values.app.name }}-auth-server
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}-auth-server
+        app.kubernetes.io/name: {{ .Values.app.name }}-auth-server
     spec:
       containers:
         - name: auth-server
@@ -82,7 +82,7 @@ metadata:
   namespace: {{ .Values.app.namespace }}
 spec:
   selector:
-    app: {{ .Values.app.name }}-auth-server
+    app.kubernetes.io/name: {{ .Values.app.name }}-auth-server
   ports:
     - protocol: TCP
       port: {{ .Values.authServer.service.ports.api }}

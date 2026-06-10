@@ -11,16 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Description:
-# Main configuration file for the "sdv-network" module.
-# Create a VPC, subnets with required IP CIDR ranges and routes.
 
 data "google_project" "project" {}
 
 module "vpc" {
   source  = "terraform-google-modules/network/google"
-  version = "~> 13.0.0"
+  version = "~> 15.1"
 
   project_id   = data.google_project.project.project_id
   network_name = var.network
@@ -29,20 +25,30 @@ module "vpc" {
   subnets = concat(
     [
       {
-        subnet_name              = var.subnetwork
-        subnet_region            = var.region
-        subnet_ip                = "10.1.0.0/24"
-        enable_ula_internal_ipv6 = true
-        private_ip_google_access = false
+        subnet_name               = var.subnetwork
+        subnet_region             = var.region
+        subnet_ip                 = "10.1.0.0/24"
+        enable_ula_internal_ipv6  = true
+        private_ip_google_access  = true
+        subnet_flow_logs          = "true"
+        subnet_flow_logs_interval = "INTERVAL_5_MIN"
+        subnet_flow_logs_sampling = "0.5"
+        subnet_flow_logs_metadata = "INCLUDE_ALL_METADATA"
+        subnet_flow_logs_filter   = "true"
       }
     ],
     var.enable_arm64 ? [
       {
-        subnet_name              = var.arm64_subnetwork
-        subnet_region            = var.arm64_region
-        subnet_ip                = "10.2.0.0/24"
-        enable_ula_internal_ipv6 = true
-        private_ip_google_access = false
+        subnet_name               = var.arm64_subnetwork
+        subnet_region             = var.arm64_region
+        subnet_ip                 = "10.2.0.0/24"
+        enable_ula_internal_ipv6  = true
+        private_ip_google_access  = true
+        subnet_flow_logs          = "true"
+        subnet_flow_logs_interval = "INTERVAL_5_MIN"
+        subnet_flow_logs_sampling = "0.5"
+        subnet_flow_logs_metadata = "INCLUDE_ALL_METADATA"
+        subnet_flow_logs_filter   = "true"
       }
     ] : []
   )
@@ -52,11 +58,11 @@ module "vpc" {
       "${var.subnetwork}" = [
         {
           range_name    = "pods-range"
-          ip_cidr_range = "10.10.0.0/16"
+          ip_cidr_range = var.pods_range
         },
         {
           range_name    = "services-range"
-          ip_cidr_range = "10.12.0.0/16"
+          ip_cidr_range = var.services_range
         },
       ]
     },

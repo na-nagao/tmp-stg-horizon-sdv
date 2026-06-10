@@ -8,26 +8,25 @@ Horizon SDV is designed to simplify the deployment and management of Android wor
 - [Technologies](#technologies)
 - [Project directories and files](#project-directories-and-files)
 - [Configuration Placeholders](#configuration-placeholders)
-- [Section #1 - GitHub Foundation Setup](#section-1---github-foundation-setup)
-  - [Section #1a - GitHub Prerequisites](#section-1a---github-prerequisites)
-  - [Section #1b - Create GitHub Organization](#section-1b---create-github-organization)
-  - [Section #1c - Create and Install GitHub Application](#section-1c---create-and-install-github-application)
-  - [Section #1d - Forking the Repository](#section-1d---forking-the-repository)
-- [Section #2 - GCP Foundation Setup](#section-2---gcp-foundation-setup)
-  - [Section #2a - GCP Prerequisites](#section-2a---gcp-prerequisites)
-  - [Section #2b - GCP Project details](#section-2b---gcp-project-details)
-  - [Section #2c - Create a Bucket in GCP](#section-2c---create-a-bucket-in-gcp)
-  - [Section #2d - Create OAuth2 Client and Secret](#section-2d---create-oauth2-client-and-secret)
-- [Section #3 - Terraform Workflow](#section-3---terraform-workflow)
-  - [Section #3a - Terraform Workflow Prerequisites](#section-3a---terraform-workflow-prerequisites)
-  - [Section #3b - Setup Terraform Workflow](#section-3b---setup-terraform-workflow)
-  - [Section #3c - Post Terraform Workflow Setup](#section-3c---post-terraform-workflow-setup)
-  - [Section #3d - Connect to GKE via Connect Gateway](#section-3d---connect-to-gke-via-connect-gateway)
-  - [Section #3e - Setup Keycloak](#section-3d---setup-keycloak)
-  - [Section #3f - Jenkins Access via Keycloak Groups](#section-3e---jenkins-access-via-keycloak-groups)
-  - [Section #3g - Argo CD Access via Keycloak Groups](#section-3f---argo-cd-access-via-keycloak-groups)
-  - [Section #3h - Headlamp Access via Keycloak Groups](#section-3g---headlamp-access-via-keycloak-groups)
-  - [Section #3i - Grafana Access via Keycloak Groups](#section-3h---grafana-access-via-keycloak-groups)
+- [Section #1 - GCP Foundation Setup](#section-1---gcp-foundation-setup)
+  - [Section #1a - GCP Prerequisites](#section-1a---gcp-prerequisites)
+  - [Section #1b - GCP Project Details](#section-1b---gcp-project-details)
+  - [Section #1c - Create a Bucket in GCP](#section-1c---create-a-bucket-in-gcp)
+  - [Section #1d - Create OAuth2 Client and Secret](#section-1d---create-oauth2-client-and-secret)
+- [Section #2 - Deployment](#section-2---deployment)
+  - [Section #2a - Prerequisites](#section-2a---prerequisites)
+  - [Section #2b - Clone the Repository](#section-2b---clone-the-repository)
+  - [Section #2c - Configure Terraform Variables](#section-2c---configure-terraform-variables)
+  - [Section #2d - Run the Deployment Script](#section-2d---run-the-deployment-script)
+- [Section #3 - Post-Deployment Setup](#section-3---post-deployment-setup)
+  - [Section #3a - Update Nameservers](#section-3a---update-nameservers)
+  - [Section #3b - Connect to GKE via Connect Gateway](#section-3b---connect-to-gke-via-connect-gateway)
+  - [Section #3c - Setup Keycloak](#section-3c---setup-keycloak)
+  - [Section #3d - Jenkins Access via Keycloak Groups](#section-3d---jenkins-access-via-keycloak-groups)
+  - [Section #3e - Argo CD Access via Keycloak Groups](#section-3e---argo-cd-access-via-keycloak-groups)
+  - [Section #3f - Headlamp Access via Keycloak Groups](#section-3f---headlamp-access-via-keycloak-groups)
+  - [Section #3g - Grafana Access via Keycloak Groups](#section-3g---grafana-access-via-keycloak-groups)
+  - [Section #3h - MCP Gateway Registry Access via Keycloak Groups](#section-3h---mcp-gateway-registry-access-via-keycloak-groups)
 - [Section #4 - Run Cluster Apps](#section-4---run-cluster-apps)
   - [Section #4a - Horizon Landing Page](#section-4a---horizon-landing-page)
   - [Section #4b - Argo CD](#section-4b---argo-cd)
@@ -38,16 +37,23 @@ Horizon SDV is designed to simplify the deployment and management of Android wor
   - [Section #4g - Headlamp](#section-4g---headlamp)
   - [Section #4h - Grafana](#section-4h---grafana)
   - [Section #4i - MCP Gateway Registry](#section-4i---mcp-gateway-registry)
-- [Section #5 - Troubleshooting](#section-5---troubleshooting)
-  - [Section #5a - Keycloak sign-in failure](#section-5a---keycloak-sign-in-failure)
-  - [Section #5b - Terraform destroy failure](#section-5b---terraform-destroy-failure)
-  - [Section #5c - Docker permission denied](#section-5c---docker-permission-denied)
+- [Section #5 - Optional - GitHub Setup](#section-5---optional---github-setup)
+  - [Section #5a - GitHub Prerequisites](#section-5a---github-prerequisites)
+  - [Section #5b - Create GitHub Organization](#section-5b---create-github-organization)
+  - [Section #5c - Create and Install GitHub Application](#section-5c---create-and-install-github-application)
+  - [Section #5d - Fork the Repository](#section-5d---fork-the-repository)
+- [Section #6 - Troubleshooting](#section-6---troubleshooting)
+  - [Section #6a - Keycloak sign-in failure](#section-6a---keycloak-sign-in-failure)
+  - [Section #6b - Error when reading or editing Certificate](#section-6b---error-when-reading-or-editing-certificate)
+  - [Section #6c - Docker permission denied](#section-6c---docker-permission-denied)
+  - [Section #6d - Docker Container build resource issues](#section-6d---docker-container-build-resource-issues)
+  - [Section #6e - Error creating SslPolicy](#section-6e---error-creating-sslpolicy)
 
 ## Technologies
 Technologies being used to provision the infrastructure along with the required applications for the GKE cluster.
 * Google Cloud Platform - cloud service provider facilitating infrastructure provisioning.
 * Terraform             - IaC tool used to provision the infrastructure and maintain infrastructure consistency.
-* GitHub                - source code management tool where infrastructure configuration, Kubernetes application manifests, workflows etc., are stored.
+* Git repository        - source code management where infrastructure configuration, Kubernetes application manifests, and workload scripts are stored. GitHub is one supported option.
 * Argo CD               - declarative, GitOps continuous delivery tool for Kubernetes.
 
 ## Project directories and files
@@ -56,104 +62,27 @@ The project is implemented in the following directories:
 + **gitops**    - Kubernetes application manifests for Argo CD, contains desired state of the cluster.
 + **terraform** - IaC configuration files to provision the infrastructure required for the GKE cluster.
 + **workloads** - Jenkins workflow scripts for the pipeline build jobs.
-+ **tools**     - User management and automated depoyment scripts.
++ **tools**     - User management and automated deployment scripts.
 
 ## Configuration Placeholders
 Throughout this document, you will encounter placeholders (e.g., <GCP_PROJECT_ID>) which represent values specific to your environment.
-It is required to replace them with actual values as you follow the setup instructions. Below is a list of all the placeholders,    
+It is required to replace them with actual values as you follow the setup instructions. Below is a list of all the placeholders,
 
-| Placeholder                | Description                                                            | Example Value                              |
-|----------------------------|------------------------------------------------------------------------|--------------------------------------------|
-| `GCP_PROJECT_NUMBER`       | Your GCP Project Number. ([more](#section-2a---gcp-project-details))   | `9876543210`                               |
-| `SUB_DOMAIN`               | The desired subdomain for your cluster apps.                           | `dev`                                      |
-| `HORIZON_DOMAIN`           | Your desired primary domain name.                                      | `your-domain.com`                          |
-| `GCP_PROJECT_ID`           | Your GCP Project ID. ([more](#section-2a---gcp-project-details))       | `my-cloud-project-abc-123`                 |
-| `REPOSITORY_URL`           | The URL of your GitHub repository.                                     | `https://github.com/your-gh-org/your-repo` |
-| `BRANCH_NAME`              | The branch of your repository to use ([more](#branching-strategy))       | `feature-xyz` or `main`                    |
-| `GITHUB_ORGANIZATION_NAME` | Your GitHub organization's name. ([more](#section-2c---create-a-github-organization)) | `your-gh-org`               |
-| `GITHUB_REPOSITORY_NAME`   | Your GutHub Repository's name. ([more](#section-3c---fork-the-repository)) | `horizon-sdv`                          |
+| Placeholder          | Description                                                                           | Example Value                             |
+|----------------------|---------------------------------------------------------------------------------------|-------------------------------------------|
+| `GCP_PROJECT_NUMBER` | Your GCP Project Number. ([more](#section-1b---gcp-project-details))                 | `9876543210`                              |
+| `SUB_DOMAIN`         | The desired subdomain for your cluster apps.                                          | `dev`                                     |
+| `HORIZON_DOMAIN`     | Your desired primary domain name.                                                     | `your-domain.com`                         |
+| `GCP_PROJECT_ID`     | Your GCP Project ID. ([more](#section-1b---gcp-project-details))                     | `my-cloud-project-abc-123`                |
+| `REPOSITORY_URL`     | The URL of your git repository.                                                       | `https://github.com/your-org/horizon-sdv` |
+| `BRANCH_NAME`        | The branch of your repository to use for deployment.                                  | `feature-xyz` or `main`                   |
+| `GIT_REPO_OWNER`     | Your git repository owner (user or organization name). ([more](#section-2c---configure-terraform-variables)) | `your-org`      |
+| `GIT_REPO_NAME`      | Your git repository name. ([more](#section-2c---configure-terraform-variables))       | `horizon-sdv`                             |
 
-## Section #1 - GitHub Foundation Setup
-This section covers the steps for creating and configuring GitHub organization, GitHub App and GitHub Repository.
-
-### Section #1a - GitHub Prerequisites
-#### Command-line Tools
-> [!Note]
-> Some of the resources can only be configured via the GUI.
-
-- If you prefer using the GitHub CLI install ([windows](https://github.com/cli/cli/blob/trunk/README.md#windows) or [Linux](https://github.com/cli/cli/blob/trunk/docs/install_linux.md#installing-gh-on-linux-and-bsd)) and [login](https://cli.github.com/manual/gh_auth_login).
-- [Git](https://git-scm.com/downloads) is installed and configured.
-
-#### GitHub
-- Each team-member has GitHub account.
-- Team-member with admin privileges able to update configuration in settings such as Secrets and Variables to customize it to use by the team.
-
-### Section #1b - Create GitHub Organization
-> [!Note]
-> Creating GitHub Organization is optional. If not using GitHub organization, the repository owner changes to user account forking the repository.
-
-Before we get started on creating a GitHub organization, it is required to have a GitHub account. If you do not have a GitHub account already, sign up [here](https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github).
-
-1. Log in to GitHub, click on your profile (profile icon located at top-right corner of the page) and select "Your organizations".
-2. Click on "New Organization" under Organizations.
-3. Click on "Create a free organization".
-4. Enter Organization name of your choice.
-5. Enter your email address as the Contact email.
-6. Set organization belonging to "My personal account".
-7. Complete the verification challenge under Verify your account.
-8. Accept the terms of service and click on Next.
-9. In the next step, you can add members to the organization or skip and add members later. Click on "Complete setup".
-
-### Section #1c - Create and Install GitHub Application
-> [!Note]
-> GitHub App creation and installation is optional if using GitHub PAT (Personal Access Token) as the authentication method, more details in later sections of the guide.
->
-> When setting up GitHub Apps for your GitHub organization, there are two distinct sections within your GitHub organization's settings where "GitHub Apps" are listed. This can sometimes cause confusion.
-> - **Organization settings > GitHub Apps** to see which apps are already connected to your organization.   
-> - **Organization settings > Developer settings > GitHub Apps** to create and configure new GitHub Apps that your organization will use or offer.
-
-1. Go to the GitHub organization settings tab, scroll down and click on Developer settings and select "GitHub Apps".
-2. Click on "New GitHub App".
-   * Enter the GitHub App name as "horizon-sa" (If the name has already been taken, provide your desired post-fix for the app name instead of "sa")
-   * Enter `https://github.com/` as the Homepage URL.
-   * Scroll down and uncheck the "Active" checkbox Under Webhook.
-   * Under Permissions, click on Repository permissions and update Access for Contents to "Read-only". (This change will update Metadata permission to Read-only)   
-      <img src="images/github_app_contents_permission.png" width="750" />
-3. Click on Create GitHub App.
-4. To create a Private Key, 
-   * Go to your GitHub organization, Settings, Developer settings, GitHub Apps and click on the "Edit" Button for "horizon-sa".
-   * Scroll down and under Private keys, click on "Generate a private key"   
-      <img src="images/github_app_private_key_generation.png" width="425" />
-   * Download and Save the `.pem` file to your machine locally.   
-5. To note down the GitHub App ID, navigate to your GitHub organization, Settings, Developer settings, GitHub Apps and click on "horizon-sa" and note down the info as shown below   
-   <img src="images/github_app_id.png" width="450" />
-6. Installing the GitHub App
-   * Go to your GitHub organization, Settings, Developer settings, GitHub Apps and click on "horizon-sa".
-   * Click on Install App.
-   * Click on Install, select "All repositories" and click on "Install" again.
-7. To verify the installation, go to your GitHub organization settings and click on GitHub Apps and it should look like below.   
-   (GitHub App name may differ in your environment)     
-   <img src="images/github_app_confirm_installation.png" width="750" />
-
-### Section #1d - Forking the Repository
-Use the following steps to fork the [horizon-sdv](https://github.com/GoogleCloudPlatform/horizon-sdv) GitHub repository into your GitHub organization (or your personal account, if not using an organization):
-
-1. Open the [horizon-sdv](https://github.com/GoogleCloudPlatform/horizon-sdv) repository on GitHub.
-2. Click the **Fork** button dropdown and select **Create a new fork**, as shown below.  
-   <img src="images/github_create_fork_1.png" width="425" />
-3. In the **Owner** field, choose your GitHub organization (or your user account), then click **Create fork**.  
-   <img src="images/github_fork_horizon_repository.png" width="750" />
-4. Once created, the forked repository will appear under your selected GitHub organization (or your user account).
-<details>
-<summary><code>gh</code> CLI command</summary>
-
-<pre><code>gh repo fork &lt;SOURCE_GITHUB_ORGANIZATION_NAME&gt;/&lt;SOURCE_GITHUB_REPOSITORY_NAME&gt; --org &lt;GITHUB_ORGANIZATION_NAME&gt;</code></pre>
-</details>
-
-## Section #2 - GCP Foundation Setup
+## Section #1 - GCP Foundation Setup
 This section covers creation and configuration of required Google Cloud Platform (GCP) services.
 
-### Section #2a - GCP Prerequisites
+### Section #1a - GCP Prerequisites
 #### Command-line Tools
 > [!Note]
 > Some of the resources can only be configured via the GUI.
@@ -163,19 +92,22 @@ If you do not prefer using the Cloud Shell on GCP Console, install GCP CLI tools
 #### Google Cloud Platform
 * Configured GCP account/project.
 * IAM Roles to be granted to new user accounts added by the owner of the project 
-   You can either assign a basic role or a fine-grained permission.
-   - Basic: Editor
-   **OR**
-   - Fine-grained:
-      - Compute Admin
-      - Kubernetes Engine Admin
-      - Artifact Registry Administrator
-      - Cloud Filestore Editor
-      - Storage Admin
+   - Editor
+   - Service Account Admin
+   - Project IAM Admin
+   - Secret Manager Admin
+   - Storage Admin
+   - Compute Admin
+   - Kubernetes Engine Admin
+   - Kubernetes Engine Cluster Admin
+   - DNS Administrator
+   - Artifact Registry Administrator
+   - Certificate Manager Admin
+   - Parameter Manager Admin
 
    Refer this document for detailed instructions for adding new user accounts: [Add an account for a new user](https://support.google.com/cloudidentity/answer/33310?sjid=12027755488314741556-NC)
 
-### Section #2b - GCP Project details
+### Section #1b - GCP Project Details
 > [!NOTE]
 > The details shown below are only for example and may vary on your environment. 
 
@@ -210,7 +142,7 @@ GCP Project details
 </ol>
 </details>
 
-### Section #2c - Create a Bucket in GCP
+### Section #1c - Create a Bucket in GCP
 In the current GCP project, it is required to create a GCP Bucket to store data related to the infrastructure. Follow the below steps to create a Bucket.
 1. On the GCP Console, navigate to Cloud Storage and click on Buckets.
 2. Click on CREATE/CREATE BUCKET button.
@@ -225,7 +157,19 @@ In the current GCP project, it is required to create a GCP Bucket to store data 
 <code>gcloud storage buckets create gs://&lt;GCP_BACKEND_BUCKET_NAME&gt;</code>
 </details>
 
-### Section #2d - Create OAuth2 Client and Secret
+### Section #1d - Create OAuth2 Client and Secret
+
+> [!NOTE]
+> This section covers setting up Google as the identity provider for Keycloak SSO. It is the documented and tested authentication path.
+>
+> The platform does not enforce Google as the only option. Keycloak supports many identity providers including Microsoft Entra ID (Azure AD), Okta, GitHub, SAML 2.0, LDAP, and any OIDC-compatible provider. Configuring a different provider is possible but not covered in this guide.
+>
+> Terraform does not require these credentials during deployment. The GCP Secret Manager entry for the OAuth2 client secret is initialized with a placeholder value by Terraform and must be updated manually after the cluster is running.
+>
+> If you already have a Google OAuth2 client, you can reuse it by adding the redirect URI: `https://<SUB_DOMAIN>.<HORIZON_DOMAIN>/auth/realms/horizon/broker/google/endpoint`
+>
+> Without completing this section, the platform deploys successfully and admin access via Keycloak username/password still works.
+
 It is required to setup OAuth consent screen before creating the OAuth client and secret. Navigate to APIs & Services and follow the below mentioned steps
 
 #### Setting up OAuth consent screen
@@ -282,30 +226,32 @@ Once in APIs & Services, click on OAuth consent screen to start the setup proces
 
 </details>
 
-## Section #3 - Terraform Workflow
-This section covers the steps for deploying Horizon platform by running Terraform workflow.
+## Section #2 - Deployment
+This section covers the steps to deploy the Horizon platform.
 
-### Section #3a - Terraform Workflow Prerequisites
+### Section #2a - Prerequisites
 The below listed tools are required to be installed.
 1. [Kubectl](https://kubernetes.io/docs/tasks/tools/) 
 2. [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
 3. Docker ([Linux](https://docs.docker.com/engine/install/) | [Windows](https://docs.docker.com/desktop/setup/install/windows-install/))
-3. [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk)
-4. The script can be run on [Google Cloud Shell](https://docs.cloud.google.com/shell/docs/launching-cloud-shell), Linux or Windows (with [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)).
+4. [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk)
+5. The script can be run on [Google Cloud Shell](https://docs.cloud.google.com/shell/docs/launching-cloud-shell), Linux or Windows (with [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)).
 
 Container based (Requires Docker to be installed on the host machine) deployment is also provided with above-listed tools pre-installed. 
 
-### Section #3b - Setup Terraform Workflow
-This sections covers the steps to be performed before Terraform workflow is run.
+### Section #2b - Clone the Repository
+Clone the [horizon-sdv](https://github.com/GoogleCloudPlatform/horizon-sdv) OSS repository. If you do not need to customize the platform, you can clone and deploy directly from the upstream repository.
 
-#### Setup the GitHub repository
-1. Clone the forked GitHub repository from [Section #1d - Forking the Repository](#section-1d---forking-the-repository).
-2. Navigate to `terraform/env` and create a copy of `terraform.tfvars.sample` in the same directory with name `terraform.tfvars`.
+If you wish to customize the platform or host the repository on your own git provider (GitHub, Gerrit, etc.), fork or mirror the repository to a location accessible from wherever you are running Terraform. If you are using GitHub, refer to [Section #5d - Fork the Repository](#section-5d---fork-the-repository) for instructions on creating a fork.
 
-#### Setup Terraform Variables
+```shell
+git clone <REPOSITORY_URL>
+```
+
+### Section #2c - Configure Terraform Variables
 > [!IMPORTANT]
 > The credentials below are for demonstration purposes and may be different for your environment.
-> Create a strong password with at least 13 characters in length and containing a combination of,
+> Create a strong password with at least 12 characters in length and containing a combination of,
 > - Uppercase letters [A -Z]
 > - Lowercase letters [a -z]
 > - Numbers [0 - 9]
@@ -313,51 +259,78 @@ This sections covers the steps to be performed before Terraform workflow is run.
 >
 > Failing to do so might break the cluster and lead to unstable and insecure cluster behavior.
 
-1. Edit `terraform.tfvars` and replace `<REQUIRED>` placeholders with actual values.
+1. Navigate to `terraform/env` and create a copy of `terraform.tfvars.sample` in the same directory with name `terraform.tfvars`.
+2. Edit `terraform.tfvars` and replace `<REQUIRED>` placeholders with actual values.
   - GCP Configuration
-    - `sdv_gcp_project_id`: GCP Project ID from [Section #2b - GCP Project details](#section-2b---gcp-project-details).
+    - `sdv_gcp_project_id`: GCP Project ID from [Section #1b - GCP Project Details](#section-1b---gcp-project-details).
     - `sdv_gcp_region`: GCP Region of your choice (default: `europe-west1`).
-    - `sdv_gcp_zone`: GCP Zone of your choice(default: `europe-west1-d`).
-    - `sdv_gcp_compute_sa_email`: GCP Compute Engine service account email from [Section #2b - GCP Project details](#section-2b---gcp-project-details)
-    - `sdv_gcp_backend_bucket`: GCP storage bucket name from [Section #2c - Create a Bucket in GCP](#section-2c---create-a-bucket-in-gcp).
+    - `sdv_gcp_zone`: GCP Zone of your choice (default: `europe-west1-d`).
+    - `sdv_gcp_compute_sa_email`: GCP Compute Engine service account email from [Section #1b - GCP Project Details](#section-1b---gcp-project-details).
+    - `sdv_gcp_backend_bucket`: GCP storage bucket name from [Section #1c - Create a Bucket in GCP](#section-1c---create-a-bucket-in-gcp).
   - Environment Metadata
     - `sdv_env_name`: Environment name of Horizon SDV platform of your choice which will also be used as sub-domain name. Preferably set same value as `<SUB_DOMAIN>`.
     - `sdv_root_domain`: Domain name, same value as `<HORIZON_DOMAIN>`.
-  - GitHub Integration
-    - `sdv_github_repo_name`: Name of your GitHub repository. (example: `horizon-sdv`).
-    - `sdv_github_repo_owner`: GitHub Organization name or GitHub user name who owns the GitHub repo (example: `GoogleCloudPlatform`)
-    - `sdv_github_repo_branch`: Name of branch from the forked repository to be used for deployment.
-    - `github_auth_method` : Select the GitHub Auth method of your choice. Set `pat` to use GitHub Personal Access Token. Set `app` to use GitHub App credentials.
-      - If GitHub PAT
-        - `sdv_github_pat` : GitHub [Personal Access token(Classic)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic). 
-      - If GitHub App
-        - `sdv_github_app_id`: GitHub App ID from [Section #1c - Create and Install GitHub Application](#section-1c---create-and-install-github-application).
+  - Git Repository Integration
+    - `sdv_git_repo_name`: Name of your git repository. (example: `horizon-sdv`).
+    - `sdv_git_repo_owner`: Git organization name or user name who owns the repository (example: `GoogleCloudPlatform`).
+    - `sdv_git_repo_branch`: Name of branch from the repository to be used for deployment.
+    - `git_auth_method`: Select the authentication method of your choice. Set `pat` to use a Personal Access Token. Set `app` to use GitHub App credentials (GitHub only).
+      - If PAT
+        - `sdv_git_pat`: [Personal Access Token (Classic)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic).
+      - If GitHub App (see [Section #5c - Create and Install GitHub Application](#section-5c---create-and-install-github-application))
+        - `sdv_github_app_id`: GitHub App ID from [Section #5c - Create and Install GitHub Application](#section-5c---create-and-install-github-application).
         - `sdv_github_app_install_id`: 
            - Navigate to Organization Settings, GitHub Apps and click on "Configure".
            - Once in the GitHub App configuration page, the `GH_INSTALLATION_ID` is present in the URL of the page as below,
            - `https://github.com/organizations/<GH-ORG-NAME>/settings/installations/<INSTALLATION_ID>`
            - Enter the value of `<INSTALLATION_ID>`
-         - `sdv_github_app_private_key`: GitHub App Private key downloaded from [Section #1c - Create and Install GitHub Application](#section-1c---create-and-install-github-application). Paste the content between `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`.
-         - `sdv_github_app_private_key_pkcs8`: PKCS8 Format of the GitHub App private key above. Command to create the key file is provided in the sample `terraform.tfvars.sample` file. Paste the content between `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`.
+         - `sdv_github_app_private_key`: GitHub App Private key downloaded from [Section #5c - Create and Install GitHub Application](#section-5c---create-and-install-github-application). Paste the content between `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`.
   - Required Admin Secrets
-    - `sdv_keycloak_admin_password`: Plain text value follwing the required password rules mentioned above.
-    - `sdv_keycloak_horizon_admin_password`: Plain text value follwing the required password rules mentioned above.
+    - `sdv_keycloak_admin_password`: Plain text value following the required password rules mentioned above.
+    - `sdv_keycloak_horizon_admin_password`: Plain text value following the required password rules mentioned above.
   - Optional
     - `enable_arm64`: ARM64 Support (enable: `true` or disable: `false`).
+    - `sdv_enable_network_policies`: Enable or disable network policies for all workloads. Set to `false` to disable all NetworkPolicy resources (useful for debugging connectivity issues). Default: `true`.
+    - `sdv_dns_dnssec_enabled`: Enable DNSSEC for the Cloud DNS zone. Requires domain ownership verification at [Google Search Console](https://search.google.com/search-console). Set to `false` to disable DNSSEC. Default: `true`.
+    - `sdv_enable_kms_encryption`: Enable KMS encryption for Kubernetes secrets at rest using customer-managed encryption keys. Set to `false` (default) to skip KMS encryption and allow clean Terraform destroy. Set to `true` to enable application-layer secrets encryption. **Warning:** Once enabled and applied, KMS keyrings cannot be deleted from GCP; the only way to remove them is to delete the entire project.
     - `manual_secrets` : Optional map of secret values that can be set manually.
+    - **Sub-Environments:** To deploy one or more sub-environments on the same cluster, define the `sdv_sub_env_configs` variable in `terraform.tfvars`. See the [Sub-Environment Deployment Guide](guides/sub_environments/sub_environment_deployment_guide.md#configuring-sub-environments) for the variable structure, required passwords, and naming rules.
 
-#### Terraform workflow
+### Section #2d - Run the Deployment Script
 Steps to start the Terraform workflow.
 
+**Containerized deployment:**
 1. Navigate to `tools/scripts/deployment`
-2. Provisioning can be done in two ways. 
-  - For **native** (local machine) deployment navigate to the script at path `tools/scripts/deployment/` and run `./deploy.sh` to start the deployment script execution which requires all tools mentioned in [Section #3a - Terraform Workflow Prerequisites](#section-3a---terraform-workflow-prerequisites)
-  - For **container** based deployment, navigate to the script at path `tools/scripts/deployment/` and run `./container-deploy.sh` (Still requires Docker to be installed on the machine).
+2. Provisioning can be done by running `./container-deploy.sh` (Requires **Docker** to be installed on the machine).
+3. The script `./container-deploy.sh` supports [**Google Cloud Shell**](https://docs.cloud.google.com/shell/docs/launching-cloud-shell), Linux or Windows (with [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)).
 
 > [!Note]
-> To deprovision the platform, run the same scripts with `--destroy` or `-d` flag.
+> To deprovision the platform, run the same script with `--destroy` or `-d` flag.
+> 
+> GCE Disks or other GCE resources provisioned by the GKE cluster will not be automatically removed while running
+> deployment script with `--destroy` or `-d` flag as they are not managed by Terraform. A manual cleanup is required.
 
-### Section #3c - Post Terraform Workflow Setup
+**Linux Native deployment:**
+> [!Important]
+> Use this deployment method ONLY on **Linux** (Ubuntu or Debian based distros), not tested on WSL or other platforms.
+
+1. The below listed tools are required to be installed.
+   1. [Kubectl](https://kubernetes.io/docs/tasks/tools/) 
+   2. [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
+   3. Docker - [Linux](https://docs.docker.com/engine/install/)
+   4. [Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk)
+2. Navigate to `tools/scripts/deployment`
+3. Provisioning can be done by running `./deploy.sh` requires all above-mentioned tools to be installed.
+
+> [!Note]
+> To deprovision the platform, run the same script with `--destroy` or `-d` flag.
+> 
+> GCE Disks or other GCE resources provisioned by the GKE cluster will not be automatically removed while running
+> deployment script with `--destroy` or `-d` flag as they are not managed by Terraform. A manual cleanup is required.
+
+## Section #3 - Post-Deployment Setup
+
+### Section #3a - Update Nameservers
 To make your Cloud DNS zone active and reachable on the internet, you must update the Nameservers at your Domain Registrar. You must "point" your domain from the registrar to Google Cloud.
 
 1. Navigate to Network Services, Cloud DNS.
@@ -371,6 +344,18 @@ To make your Cloud DNS zone active and reachable on the internet, you must updat
 5. Update your Domain Registrar with custom nameservers.
 
 The process may differ based on your Domain Registrar.
+
+#### DNSSEC implementation details (if enabled)
+
+If you set `sdv_dns_dnssec_enabled = true` in `terraform.tfvars`, Terraform creates a Cloud DNS zone with DNSSEC. The following applies only when DNSSEC is enabled; you can set `sdv_dns_dnssec_enabled = false` to skip these steps.
+
+- **Zone creation and authorization:** When DNSSEC is enabled, Terraform creates a zone during deployment. You must verify that the account is authorized to create that zone. This can be done in [Google Search Console](https://search.google.com/search-console).
+
+- **DS record (optional):** After the zone is created by Terraform, you can retrieve a **DS** record and add it to the main `horizon-sdv.com` zone to make the domain fully DNSSEC compliant. The setup works even without this step.
+
+- **Verification:** DNSSEC can be verified on the [DNSSEC Debugger](https://dnssec-debugger.verisignlabs.com/) site.
+
+- **Disabling DNSSEC:** DNSSEC can be disabled in `terraform.tfvars`; in that case the steps above are not needed.
 
 ### Section #3d - Connect to GKE via Connect Gateway
 Follow the steps mentioned in this section to connect to the GKE cluster using the Connect Gateway.   
@@ -389,7 +374,7 @@ Follow the steps mentioned in this section to connect to the GKE cluster using t
     kubectl get nodes
     ```
 
-### Section #3e - Setup Keycloak
+### Section #3c - Setup Keycloak
 Follow the steps mentioned in this section once the cluster is provisioned and is running successfully to configure Keycloak.
 
 #### Login as Horizon admin
@@ -397,7 +382,7 @@ Follow the steps mentioned in this section once the cluster is provisioned and i
    <img src="images/keycloak_launch.png" width="325" />
 2. Login to Keycloak as admin with below credentials,
    - username: `horizon-admin`
-   - password:  Use value of `sdv_keycloak_horizon_admin_password` as configured in [Setup Terraform Variables](#setup-terraform-variables) section.
+   - password:  Use value of `sdv_keycloak_horizon_admin_password` as configured in [Section #2c - Configure Terraform Variables](#section-2c---configure-terraform-variables).
 3. On your first login, you may be prompted to update your password. Create a new, strong password, confirm it, and click Submit.
 4. On the next screen, enter your email address, first name, and last name as below.
    - Email Adress: `horizon.admin@keycloak.com`
@@ -420,7 +405,7 @@ Follow the steps mentioned in this section once the cluster is provisioned and i
    <img src="images/keycloak_create_authentication_flow_1.png" width="750" />
 4. Switch the value of "Requirement" field for the step "Detect existing broker user" to "Required" from the drop-down list as below   
    <img src="images/keycloak_create_authentication_flow_2.png" width="750" />
-5. Click on "Add step".
+5. Click on "Add execution".
 6. In the pop-up search box, search for "Automatically set existing user" and click on "Add".   
    <img src="images/keycloak_create_authentication_flow_3.png" width="750" />
 7. Switch the value of "Requirement" field for the step "Automatically set existing user" to "Required" from the drop-down list as below   
@@ -437,9 +422,9 @@ After logging in as the Horizon admin, follow these steps to create a human user
 2. Toggle Email Verified to On.
 3. Enter the required details for username, email, first name, and last name. (Note: Use the full email address for both the username and email fields.)
 4. Click on Create.
-5. On the next page, switch to Role mapping tab and click on Assign role.   
+5. On the next page, switch to Role mapping tab and click on Assign role.
+6. Click on "Realm roles"   
    <img src="images/keycloak_assign_role_1.png" width="750" />
-6. Click on "Realm roles"
 7. Search for "realm_admin" and click on the checkbox to select the role.
 8. Click on Assign.   
    <img src="images/keycloak_assign_role_2.png" width="750" />
@@ -449,7 +434,7 @@ After logging in as the Horizon admin, follow these steps to create a human user
 
 Repeat the above steps to add additional users with the required access privilege level.
 
-### Section #3f - Jenkins Access via Keycloak Groups
+### Section #3d - Jenkins Access via Keycloak Groups
 >[!NOTE]
 >Admin access to Keycloak is required for this section.
 
@@ -500,7 +485,7 @@ Follow the below steps to assign a user to required Keycloak group,
 4. Verify Group Assignment
    - The group should now appear under the user's "Group Membership".
 
-### Section #3g - Argo CD Access via Keycloak Groups
+### Section #3e - Argo CD Access via Keycloak Groups
 This section includes the steps to assign a user to a Keycloak group to enable Argo CD access. Group membership determines the level of access granted to the user.
 
 #### Available Groups
@@ -533,7 +518,7 @@ Follow the below steps to assign a user to required Keycloak group,
 4. Verify Group Assignment
    - The group should now appear under the user's "Group Membership".
 
-### Section #3h - Headlamp Access via Keycloak Groups
+### Section #3f - Headlamp Access via Keycloak Groups
 This section includes the steps to assign a user to a Keycloak group to enable Headlamp access. Group membership determines the level of access granted to the user.
 
 #### Available Groups
@@ -566,7 +551,7 @@ Follow the below steps to assign a user to required Keycloak group,
 4. Verify Group Assignment
    - The group should now appear under the user's "Group Membership".
 
-### Section #3i - Grafana Access via Keycloak Groups
+### Section #3g - Grafana Access via Keycloak Groups
 This section includes the steps to assign a user to a Keycloak group to enable Grafana access. Group membership determines the level of access granted to the user. 
 
 #### Available Groups
@@ -600,7 +585,7 @@ Follow the below steps to assign a user to required Keycloak group,
 4. Verify Group Assignment
    - The group should now appear under the user's "Group Membership".
 
-### Section #3i - MCP Gateway Registry Access via Keycloak Groups
+### Section #3h - MCP Gateway Registry Access via Keycloak Groups
 This section includes the steps to assign a user to a Keycloak group to enable MCP Gateway Registry access. Group membership determines the level of access granted to the user.
 
 #### Available Groups
@@ -636,7 +621,7 @@ Follow the below steps to assign a user to required Keycloak group,
 
 
 ## Section #4 - Run Cluster Apps
-This section details how to sign in to and use cluster applications, including their functionalities within the cluster environment.
+This section details how to sign in to and use cluster applications, including their functionalities within the cluster environment. When using sub-environments, each sub-environment has its own landing page and application URLs at `https://<SUB_ENV_NAME>.<SUB_DOMAIN>.<HORIZON_DOMAIN>`. See the [Sub-Environment Deployment Guide – Accessing Sub-Environment Applications](guides/sub_environments/sub_environment_deployment_guide.md#accessing-sub-environment-applications) for the URL pattern and application list.
 
 ### Section #4a - Horizon Landing Page
 You can access the landing page by going to `https://<SUB_DOMAIN><HORIZON_DOMAIN>` which enables you to launch any of the applications running within the Horizon GKE Cluster.    
@@ -645,11 +630,11 @@ There are two types of Apps
 - Applications - Cluster Apps non-admin users can access.
 - Admin Applications - Cluster Apps only the admin users can access and perform cluster administrative tasks.
 
-You can click on the ‘Launch’ button within each cluster application’s card on the Horizon landing page to open the application of your choice.   
+You can click on the 'Launch' button within each cluster application's card on the Horizon landing page to open the application of your choice.   
 <img src="images/horizon_landing_page.png" width="750" />
 
 ### Section #4b - Argo CD
-Argo CD is the GitOps tool being used with GitHub as the "source of truth" where the desired state of Kubernetes applications have been configured. 
+Argo CD is the GitOps tool being used with a git repository as the "source of truth" where the desired state of Kubernetes applications have been configured. 
 It ensures the Kubernetes Cluster (GKE) always matches that desired state. Here, Argo CD is configured to automatically sync so, no user intervention is usually required.  
 
 1. To Access Argo CD UI, go to the Horizon Landing page here: `https://<SUB_DOMAIN>.<HORIZON_DOMAIN>` and click on the Launch button within the Argo CD app card as below.   
@@ -697,9 +682,9 @@ Keycloak is the Identity and Access Management (IAM) application provides featur
 
 1. To Access Keycloak UI, go to the Horizon Landing page here: https://<SUB_DOMAIN>.<HORIZON_DOMAIN> and click on the Launch button within the Keycloak app card as below.   
    <img src="images/keycloak_launch.png" width="325" />
-2. Log-in to Keycloak using the credentials configured in section [Add Environment secrets](#add-environment-secrets).
+2. Log-in to Keycloak using the credentials configured in [Section #2c - Configure Terraform Variables](#section-2c---configure-terraform-variables).
 
-Refer section [Section #3d - Setup Keycloak](#section-3d---setup-keycloak) for steps to create and manage users.   
+Refer section [Section #3c - Setup Keycloak](#section-3c---setup-keycloak) for steps to create and manage users.   
    
 <img src="images/keycloak_homepage.png" width="750" />
 
@@ -771,9 +756,88 @@ Below is a view of the MCP Gateway Registry homepage where you should see the pr
 <img src="images/mcp_gateway_registry_home_page.png" width="750" />
 
 
-## Section #5 - Troubleshooting
+## Section #5 - Optional - GitHub Setup
 
-### Section #5a - Keycloak sign-in failure
+> [!NOTE]
+> This section is only required if you are using GitHub as your git provider. If you are using a GitHub Personal Access Token (PAT) without a GitHub organization, only [Section #5a - GitHub Prerequisites](#section-5a---github-prerequisites) and [Section #5d - Fork the Repository](#section-5d---fork-the-repository) apply. If you are using GitHub App authentication, all sub-sections apply.
+
+### Section #5a - GitHub Prerequisites
+#### Command-line Tools
+> [!Note]
+> Some of the resources can only be configured via the GUI.
+
+- If you prefer using the GitHub CLI install ([windows](https://github.com/cli/cli/blob/trunk/README.md#windows) or [Linux](https://github.com/cli/cli/blob/trunk/docs/install_linux.md#installing-gh-on-linux-and-bsd)) and [login](https://cli.github.com/manual/gh_auth_login).
+- [Git](https://git-scm.com/downloads) is installed and configured.
+
+#### GitHub
+- Each team-member has a GitHub account.
+- Team-member with admin privileges able to update configuration in settings such as Secrets and Variables to customize it to use by the team.
+
+### Section #5b - Create GitHub Organization
+> [!Note]
+> Creating GitHub Organization is optional. If not using GitHub organization, the repository owner changes to user account forking the repository.
+
+Before we get started on creating a GitHub organization, it is required to have a GitHub account. If you do not have a GitHub account already, sign up [here](https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github).
+
+1. Log in to GitHub, click on your profile (profile icon located at top-right corner of the page) and select "Your organizations".
+2. Click on "New Organization" under Organizations.
+3. Click on "Create a free organization".
+4. Enter Organization name of your choice.
+5. Enter your email address as the Contact email.
+6. Set organization belonging to "My personal account".
+7. Complete the verification challenge under Verify your account.
+8. Accept the terms of service and click on Next.
+9. In the next step, you can add members to the organization or skip and add members later. Click on "Complete setup".
+
+### Section #5c - Create and Install GitHub Application
+> [!Note]
+> GitHub App creation and installation is optional if using GitHub PAT (Personal Access Token) as the authentication method, more details in later sections of the guide.
+>
+> When setting up GitHub Apps for your GitHub organization, there are two distinct sections within your GitHub organization's settings where "GitHub Apps" are listed. This can sometimes cause confusion.
+> - **Organization settings > GitHub Apps** to see which apps are already connected to your organization.   
+> - **Organization settings > Developer settings > GitHub Apps** to create and configure new GitHub Apps that your organization will use or offer.
+
+1. Go to the GitHub organization settings tab, scroll down and click on Developer settings and select "GitHub Apps".
+2. Click on "New GitHub App".
+   * Enter the GitHub App name as "horizon-sa" (If the name has already been taken, provide your desired post-fix for the app name instead of "sa")
+   * Enter `https://github.com/` as the Homepage URL.
+   * Scroll down and uncheck the "Active" checkbox Under Webhook.
+   * Under Permissions, click on Repository permissions and update Access for Contents to "Read-only". (This change will update Metadata permission to Read-only)   
+      <img src="images/github_app_contents_permission.png" width="750" />
+3. Click on Create GitHub App.
+4. To create a Private Key, 
+   * Go to your GitHub organization, Settings, Developer settings, GitHub Apps and click on the "Edit" Button for "horizon-sa".
+   * Scroll down and under Private keys, click on "Generate a private key"   
+      <img src="images/github_app_private_key_generation.png" width="425" />
+   * Download and Save the `.pem` file to your machine locally.   
+5. To note down the GitHub App ID, navigate to your GitHub organization, Settings, Developer settings, GitHub Apps and click on "horizon-sa" and note down the info as shown below   
+   <img src="images/github_app_id.png" width="450" />
+6. Installing the GitHub App
+   * Go to your GitHub organization, Settings, Developer settings, GitHub Apps and click on "horizon-sa".
+   * Click on Install App.
+   * Click on Install, select "All repositories" and click on "Install" again.
+7. To verify the installation, go to your GitHub organization settings and click on GitHub Apps and it should look like below.   
+   (GitHub App name may differ in your environment)     
+   <img src="images/github_app_confirm_installation.png" width="750" />
+
+### Section #5d - Fork the Repository
+Use the following steps to fork the [horizon-sdv](https://github.com/GoogleCloudPlatform/horizon-sdv) GitHub repository into your GitHub organization (or your personal account, if not using an organization):
+
+1. Open the [horizon-sdv](https://github.com/GoogleCloudPlatform/horizon-sdv) repository on GitHub.
+2. Click the **Fork** button dropdown and select **Create a new fork**, as shown below.  
+   <img src="images/github_create_fork_1.png" width="425" />
+3. In the **Owner** field, choose your GitHub organization (or your user account), then click **Create fork**.  
+   <img src="images/github_fork_horizon_repository.png" width="750" />
+4. Once created, the forked repository will appear under your selected GitHub organization (or your user account).
+<details>
+<summary><code>gh</code> CLI command</summary>
+
+<pre><code>gh repo fork &lt;SOURCE_GITHUB_ORGANIZATION_NAME&gt;/&lt;SOURCE_GITHUB_REPOSITORY_NAME&gt; --org &lt;GITHUB_ORGANIZATION_NAME&gt;</code></pre>
+</details>
+
+## Section #6 - Troubleshooting
+
+### Section #6a - Keycloak sign-in failure
 Check the below sections for issues related to sign-in after the cluster has been provisioned and Keycloak is setup with google identity provider.
 
 #### Redirect URI mismatch
@@ -791,35 +855,30 @@ If you are getting the error "User <USER_NAME> authenticated with Identity provi
 - Go to Users, click on your user.
 - Make sure both Username and Email fields have the complete Email address.
 
-### Section #5b - Terraform destroy failure
-Terraform destroy workflow failing with below error,
-```
-Error: Error when reading or editing SslPolicy: googleapi: Error 400: The ssl_policy resource 'projects/<PROJECT_ID>/global/sslPolicies/gke-ssl-policy' is already being used by 'projects/<PROJECT_ID>/global/targetHttpsProxies/gkegw1-6ic7-gke-gateway-gke-gateway-qihmpg2399w0', resourceInUseByAnotherResource
-│ 
-│ 
-╵
-╷
-│ Error: Error when reading or editing CertificateMap: googleapi: Error 400: can't delete certificate map that is referenced by a target proxy
+### Section #6b - Error when reading or editing Certificate
+```shell
+│  Error: Error when reading or editing Certificate: googleapi: Error 400: can't delete certificate that is referenced by a CertificateMapEntry or other resources
 │ Details:
 │ [
 │   {
 │     "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
 │     "violations": [
 │       {
-│         "description": "can't delete certificate map that is referenced by a target proxy",
-│         "subject": "projects/<PROJECT_NUMBER>/locations/global/certificateMaps/horizon-sdv-map",
+│         "description": "can't delete certificate that is referenced by a CertificateMapEntry or other resources",
+│         "subject": "projects/<PROJECT_NUMBER>/locations/global/certificates/horizon-sdv",
 │         "type": "RESOURCE_STILL_IN_USE"
 │       }
 │     ]
 │   }
 │ ]
 ```
-To resolve this error it is required to remove left-over Network Endpoint Groups created by GKE Cluster which is not managed by Terraform,
-1. Naviage to Network endpoint groups.
-2. Check all the Network endpoints created by the GKE Cluster and delete them.
-3. Re-run the Terraform destroy workflow using the deployment script.
+If facing above error, as a workaround, run the below command to temporarily enable edit or removal of the certificate.
 
-### Section #5c - Docker permission denied
+```shell
+gcloud certificate-manager maps delete horizon-sdv-map
+```
+
+### Section #6c - Docker permission denied
 If you encounter below error on Linux,
 ```
 Building deployer image...
@@ -827,3 +886,31 @@ ERROR: permission denied while trying to connect to the Docker daemon socket at 
 ```
 
 Follow post-install steps as shown in [Manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
+
+### Section #6d - Docker Container build resource issues
+```shell
+│ Error: Error running legacy build: process "/bin/sh -c apt-get update && apt-get install -y     curl     git     build-essential     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+│
+│
+│
+│   with module.base.module.sdv_container_images.docker_image.sdv-container-images["gerrit-mcp-server-app"],
+│   on ../modules/sdv-container-images/main.tf line 20, in resource "docker_image" "sdv-container-images":
+│   20: resource "docker_image" "sdv-container-images" {
+│
+```
+ Building Docker containers can be resource-intensive. If you encounter build failures (such as `exit code: 100` as shown above or unexpected timeouts), please increase the CPU and Memory allocated to Docker and re-run the deployment script.
+
+### Section #6e - Error creating SslPolicy
+```shell
+│ Error: Error creating SslPolicy: googleapi: Error 409: The resource 'projects/<PROJECT_ID>/global/sslPolicies/gke-ssl-policy' already exists, alreadyExists
+│
+│   with module.base.module.sdv_ssl_policy.google_compute_ssl_policy.gke_ssl_policy,
+│   on ../modules/sdv-ssl-policy/main.tf line 21, in resource "google_compute_ssl_policy" "gke_ssl_policy":
+│   21: resource "google_compute_ssl_policy" "gke_ssl_policy" {
+│
+```
+A manual workaround for this error, run the below command,
+
+```shell
+gcloud compute ssl-policies delete gke-ssl-policy --global --project=sdva-2108202401
+```

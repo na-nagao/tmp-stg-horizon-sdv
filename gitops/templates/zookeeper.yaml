@@ -15,14 +15,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: zookeeper
-  namespace: argocd
+  name: {{ .Values.config.namespacePrefix }}zookeeper
+  namespace: {{ .Values.config.namespacePrefix }}argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: horizon-sdv
+  project: {{ .Values.config.namespacePrefix }}horizon-sdv
   source:
     repoURL: https://github.com/bitnami/charts
     targetRevision: {{ .Values.config.applications.zookeeper.version }}
@@ -35,13 +35,15 @@ spec:
           security:
             allowInsecureImages: true
         primary:
+          networkPolicy:
+            enabled: false
           persistence:
             accessMode: "ReadWriteOnce"
             enabled: true
-            existingClaim: "zookeeper-data"
+            existingClaim: "{{ .Values.config.namespacePrefix }}zookeeper-data"
   destination:
     server: https://kubernetes.default.svc
-    namespace: zookeeper
+    namespace: {{ .Values.config.namespacePrefix }}zookeeper
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

@@ -38,7 +38,7 @@ href="https://source.android.com/docs/compatibility/cts/downloads" target="_blan
     <p>Users can optionally keep the cuttlefish virtual devices alive for a finite amount of time after the CTS run has completed to facilitate debugging via MTK Connect. This option is only available when MTK Connect is enabled.</p>
     <h4 style="margin-bottom: 10px;">Important Notes</h4>
     <p><ul><li>Users are responsible for specifying a valid cuttlefish instance - the job will block if the specified instance does not exist.</li>
-           <li>If tests timeout, then create the Cuttflefish instance template with a larger run duration, see <code>MAX_RUN_DURATION</code>, increase or set to 0 to ignore max runtime.</li></ul></p>
+           <li>If tests timeout, then create the Cuttlefish instance template with a larger run duration, see <code>MAX_RUN_DURATION</code>, increase or set to 0 to ignore max runtime.</li></ul></p>
     <br/><div style="border-top: 1px solid #ccc; width: 100%;"></div><br/>""")
 
   parameters {
@@ -212,10 +212,10 @@ e.g.<br/>gs://${ANDROID_BUILD_BUCKET_ROOT_NAME}/Android/Builds/AAOS_Builder/&lt;
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/tests/cts_execution/Jenkinsfile')

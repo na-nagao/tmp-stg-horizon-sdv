@@ -54,28 +54,17 @@ Android Build File System - EAP</a>: Android Build File System is currently avai
 
 ### Horizon-SDV Setup<a name="horizonsetup"></a>
 
-Once Google provide you the ABFS license in JSON form, you will be required to create a new secret in the Horizon-SDV GitHub environment secrets, e.g.
+Once Google provide you the ABFS license in JSON form, the license must be supplied directly via Jenkins when provisioning ABFS components. 
 
 1. **Base64 encode the license** Ensure there are no stray spaces in the license nor new lines. Then:
    ```echo -n '<LICENSE STRING>' | base64```
-2. **GitHub secret**: the secret now needs to be added to the GitHub environment.
-   - Open ```https://github.com/<your horizon sdv fork>/settings → Environment```
-   - Select your environment, e.g. `main`
-   - In `Environment secrets` select` Add Environment Secret`
-     - `Name`: `ABFS_LICENSE_B64`
-     - `Value`: <paste the base64 encoded license from step 1>
-     - Then select `Add Secret`
-3. **GitHub Terraform Workflow**: the secret must now be applied to the project using Terraform workflow
-   - Open ```https://github.com/<your horizon sdv fork>/actions```
-   - Select `Actions → Terraform`
-   - Select `Run Workflow`
-   - Select the branch, e.g. main
-   - Select `Run workflow` and wait for Terraform to apply and complete all stages.
-4. **ArgoCD**: ensure the secret is propogated.
-   - Open ArgoCD from the Horizon-SDV landing page.
-   - Select `Horizon-SDV`, select `SYNC`  and then `SYNCHRONIZE`
-   - Wait for sync to complete.
-5. **Android Workload**: this next step will prepare the Jenkins CI/CD system to support ABFS.
+2. **Jenkins Job Parameter** Provide the Base64-encoded ABFS license using the following Jenkins job parameter:
+  - `ABFS_LICENSE_B64` 
+  This parameter must be supplied when provisioning ABFS components and is consumed by the following Jenkins jobs when 
+  `ABFS_TERRAFORM_ACTION=APPLY`:
+    - `ABFS Server provisioning`
+    - `ABFS Uploader provisioning`
+3. **Android Workload**: this next step will prepare the Jenkins CI/CD system to support ABFS.
    - Open `Seed Workloads`
      - Review `ABFS_REPOSITORY`, `ABFS_VERSION` and `ABFS_CASFS_VERSION` match expectation. Refer to `aaos_abfs_builder.md` for additional details.
      - Select `SEED_WORKLOAD` `android` and `Build`

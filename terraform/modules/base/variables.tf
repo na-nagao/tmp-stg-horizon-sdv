@@ -15,33 +15,45 @@
 # Description:
 # Configuration file containing variables for the "base" module.
 
-variable "github_auth_method" {
+variable "sdv_sub_environments" {
+  description = "List of sub-environments to create"
+  type        = list(string)
+  default     = []
+}
+
+variable "sdv_sub_env_branches" {
+  description = "Map of sub-environment name to Git branch for ArgoCD sync"
+  type        = map(string)
+  default     = {}
+}
+
+variable "git_auth_method" {
   description = "Authentication method for Argo CD: 'app' or 'pat'."
   type        = string
 }
 
-variable "github_repo_owner" {
-  description = "Define the GitHub repository name"
+variable "git_repo_owner" {
+  description = "Git repository owner (user or organization name)"
   type        = string
 }
 
-variable "github_repo_name" {
-  description = "Define the GitHub repository name"
+variable "git_repo_name" {
+  description = "Git repository name"
   type        = string
 }
 
-variable "github_repo_branch" {
-  description = "Github repo branch"
+variable "git_repo_branch" {
+  description = "Git repository branch"
   type        = string
 }
 
-variable "github_env_name" {
-  description = "Define the GitHub environment name"
+variable "env_name" {
+  description = "Define the environment name"
   type        = string
 }
 
-variable "github_domain_name" {
-  description = "Define the GitHub domain name"
+variable "domain_name" {
+  description = "Define the domain name"
   type        = string
 }
 
@@ -90,6 +102,11 @@ variable "sdv_cluster_name" {
   type        = string
 }
 
+variable "sdv_cluster_version" {
+  description = "GKE cluster control plane version (e.g. 1.33.5-gke.2172001). Replaces release_channel so node pools can set auto_upgrade = false (e.g. ABFS for CASFS kernel)."
+  type        = string
+}
+
 variable "sdv_cluster_node_pool_name" {
   description = "Name of the cluster node pool"
   type        = string
@@ -105,6 +122,18 @@ variable "sdv_cluster_node_pool_count" {
   description = "Define the number of nodes for the node pool"
   type        = number
   default     = 1
+}
+
+variable "sdv_cluster_node_pool_min_node_count" {
+  description = "Minimum number of nodes for the cluster main node pool"
+  type        = number
+  default     = 1
+}
+
+variable "sdv_cluster_node_pool_max_node_count" {
+  description = "Maximum number of nodes for the cluster main node pool"
+  type        = number
+  default     = 6
 }
 
 variable "sdv_cluster_node_locations" {
@@ -215,6 +244,11 @@ variable "sdv_abfs_build_node_pool_max_node_count" {
   default     = 20
 }
 
+variable "sdv_abfs_build_node_pool_version" {
+  description = "Kubernetes version for the ABFS build node pool (e.g. 1.32.7-gke.1079000). Pins the node pool to this GKE version."
+  type        = string
+}
+
 variable "sdv_openbsw_build_node_pool_name" {
   description = "Name of the OpenBSW build node pool"
   type        = string
@@ -265,9 +299,9 @@ variable "sdv_wi_service_accounts" {
 variable "sdv_gcp_secrets_map" {
   description = "A map of secrets with their IDs and values."
   type = map(object({
-    secret_id        = string
-    value            = string
-    use_github_value = bool
+    secret_id   = string
+    value       = string
+    apply_value = bool
     gke_access = list(object({
       ns = string
       sa = string
@@ -278,11 +312,6 @@ variable "sdv_gcp_secrets_map" {
 variable "sdv_list_of_apis" {
   description = "List of APIs for the project"
   type        = set(string)
-}
-
-variable "sdv_abfs_license_key_b64" {
-  description = "ABFS license base64"
-  type        = string
 }
 
 # Define Parameters map
@@ -308,6 +337,29 @@ variable "arm64_subnetwork" {
   default     = "sdv-subnet-us"
 }
 
+variable "nodes_range" {
+  description = "GKE node / primary subnet CIDR (source IP when pod egress is SNAT'd to node). Must match sdv-network primary subnet."
+  type        = string
+  default     = "10.1.0.0/24"
+}
+
+variable "pods_range" {
+  description = "pod CIDR"
+  type        = string
+  default     = "10.10.0.0/16"
+}
+
+variable "services_range" {
+  description = "service CIDR"
+  type        = string
+  default     = "10.12.0.0/16"
+}
+variable "arm64_nodes_range" {
+  description = "ARM64 GKE node / primary subnet CIDR. Must match sdv-network ARM64 primary subnet."
+  type        = string
+  default     = "10.2.0.0/24"
+}
+
 variable "arm64_pods_range" {
   description = "ARM64 pod CIDR"
   type        = string
@@ -319,3 +371,22 @@ variable "arm64_services_range" {
   type        = string
   default     = "10.22.0.0/16"
 }
+
+variable "sdv_dns_dnssec_enabled" {
+  description = "Enable DNSSEC for Cloud DNS zone. Requires domain ownership verification. Enabled by default."
+  type        = bool
+  default     = true
+}
+
+variable "sdv_enable_network_policies" {
+  description = "Enable network policies for all workloads. When disabled, all network policies will be removed. Default is enabled."
+  type        = bool
+  default     = true
+}
+
+variable "sdv_enable_kms_encryption" {
+  description = "Enable KMS encryption for GKE secrets"
+  type        = bool
+  default     = false
+}
+

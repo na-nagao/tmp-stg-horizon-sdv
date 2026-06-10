@@ -25,10 +25,10 @@ node keycloak.mjs
 
 SECRET=$(cat client-argocd.json | jq -r ".secret")
 
-kubectl -n argocd patch secret argocd-secret \
+kubectl -n ${NAMESPACE_PREFIX}argocd patch secret argocd-secret \
   --patch="{\"stringData\": { \"oidc.keycloak.clientSecret\": \"${SECRET}\" }}"
 
-kubectl -n argocd patch configmap argocd-cm --patch="
+kubectl -n ${NAMESPACE_PREFIX}argocd patch configmap argocd-cm --patch="
 {
   \"data\": {
     \"url\": \"${DOMAIN}/argocd\",
@@ -36,11 +36,11 @@ kubectl -n argocd patch configmap argocd-cm --patch="
   }
 }"
 
-kubectl -n argocd patch configmap argocd-rbac-cm --patch='
+kubectl -n ${NAMESPACE_PREFIX}argocd patch configmap argocd-rbac-cm --patch='
 {
   "data": {
     "policy.csv": "g, horizon-argocd-administrators, role:admin"
   }
 }'
 
-kubectl rollout restart deployment/argocd-server -n argocd
+kubectl rollout restart deployment/${NAMESPACE_PREFIX}argocd-server -n ${NAMESPACE_PREFIX}argocd

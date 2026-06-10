@@ -46,6 +46,7 @@ fi
 echo "Starting deployment shell..."
 
 docker run --rm -it \
+  --platform linux/amd64 \
   --hostname $CONTAINER_HOSTNAME \
   -u 0 \
   -v /var/run/docker.sock:/var/run/docker.sock \

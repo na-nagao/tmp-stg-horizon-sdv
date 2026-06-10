@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Accenture, All Rights Reserved.
+# Copyright (c) 2024-2026 Accenture, All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,10 +28,11 @@ URL_DOMAIN = ""
 OLD_KEY_ID_LS = []
 OLD_KEY_VAL = ''
 
+NAMESPACE_PREFIX = os.getenv("NAMESPACE_PREFIX", "")
 KEY_DEL_TIME_DELTA = 2 # in days
-NAMESPACE_MTK_CONNECT = "mtk-connect"
+NAMESPACE_MTK_CONNECT = f"{NAMESPACE_PREFIX}mtk-connect"
 SECRET_NAME_MTK_CONNECT = "mtk-connect-apikey"
-NAMESPACE_JENKINS = "jenkins"
+NAMESPACE_JENKINS = f"{NAMESPACE_PREFIX}jenkins"
 SECRET_NAME_JENKINS = "jenkins-mtk-connect-apikey"
 
 API_REQUEST_OPT = {
@@ -165,6 +166,17 @@ def retrieve_secret_value(secret_key):
     print("Failed to retrieve secret value from environment variable.")
   return secret_value
 
+def get_k8s_client():
+  """Load kube config and return CoreV1Api client."""
+  try:
+    config.load_incluster_config()
+    print("Using in-cluster configuration.")
+  except config.ConfigException:
+    config.load_kube_config()
+    print("Using kubeconfig file.")
+  return client.CoreV1Api()
+
+
 def update_secret_value(secret_name, namespace, new_value, key="password"):
   """
   Updates the value of a specific key in a Kubernetes Secret.
@@ -172,37 +184,66 @@ def update_secret_value(secret_name, namespace, new_value, key="password"):
   """
   result = False
   print("\nUpdating secret value.")
-  try:
-    config.load_incluster_config()
-    print("Using in-cluster configuration.")
-  except config.ConfigException:
-    config.load_kube_config()
-    print("Using kubeconfig file.")
-  v1 = client.CoreV1Api()
-  
+  v1 = get_k8s_client()
   try:
     # Fetch the existing secret
     secret = v1.read_namespaced_secret(name=secret_name, namespace=namespace)
-    
     # Update the value of the specified key
     if secret.data is None:
-      secret.data = {}  # Ensure `data` exists
-    
-    # Encode the new value to base64
+      secret.data = {}
     secret.data[key] = base64.b64encode(new_value.encode()).decode()
-    
-    # Update the secret in Kubernetes
     v1.replace_namespaced_secret(name=secret_name, namespace=namespace, body=secret)
-    print(f"Updated key '{key}' in secret '{secret_name}' with new value.{secret}")
+    print(f"Updated key '{key}' in secret '{secret_name}' with new value.")
+    result = True
   except client.exceptions.ApiException as e:
     if e.status == 404:
-        print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
+      print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
     else:
-        raise e
-  else:
+      raise e
+  return result
+
+
+def create_or_update_jenkins_secret(secret_name, namespace, username, password):
+  """
+  Creates the Jenkins credential secret if it does not exist, otherwise updates
+  the password. Ensures the credential ID 'jenkins-mtk-connect-apikey' exists
+  even when mtk-connect-post-job has not run or failed.
+  Returns result flag: True if operation was successful.
+  """
+  result = False
+  v1 = get_k8s_client()
+  try:
+    secret = v1.read_namespaced_secret(name=secret_name, namespace=namespace)
+    if secret.data is None:
+      secret.data = {}
+    secret.data["password"] = base64.b64encode(password.encode()).decode()
+    if "username" not in (secret.data or {}):
+      secret.data["username"] = base64.b64encode(username.encode()).decode()
+    v1.replace_namespaced_secret(name=secret_name, namespace=namespace, body=secret)
+    print(f"Updated Jenkins secret '{secret_name}' with new password.")
     result = True
-  finally:
-    return result
+  except client.exceptions.ApiException as e:
+    if e.status == 404:
+      print(f"Secret '{secret_name}' not found in namespace '{namespace}'; creating it.")
+      body = client.V1Secret(
+        metadata=client.V1ObjectMeta(
+          name=secret_name,
+          namespace=namespace,
+          labels={"jenkins.io/credentials-type": "usernamePassword"},
+          annotations={"jenkins.io/credentials-description": "MTK Connect APIKEY"},
+        ),
+        type="Opaque",
+        data={
+          "username": base64.b64encode(username.encode()).decode(),
+          "password": base64.b64encode(password.encode()).decode(),
+        },
+      )
+      v1.create_namespaced_secret(namespace=namespace, body=body)
+      print(f"Created Jenkins secret '{secret_name}'.")
+      result = True
+    else:
+      raise e
+  return result
 
 if __name__ == "__main__":
   print("Script start")
@@ -232,7 +273,9 @@ if __name__ == "__main__":
     operation_result = update_secret_value(SECRET_NAME_MTK_CONNECT, NAMESPACE_MTK_CONNECT, KEY_VAL)
     
   if operation_result:
-    operation_result = update_secret_value(SECRET_NAME_JENKINS, NAMESPACE_JENKINS, KEY_VAL)
+    operation_result = create_or_update_jenkins_secret(
+        SECRET_NAME_JENKINS, NAMESPACE_JENKINS, USERNAME, KEY_VAL
+    )
 
   if operation_result:
     operation_result = perform_api_request(operation="GET_CURRENT_USER", is_delete_key_id=True)

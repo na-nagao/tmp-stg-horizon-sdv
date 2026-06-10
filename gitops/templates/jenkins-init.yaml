@@ -15,7 +15,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: jenkins-rwo
+  name: {{ .Values.config.namespacePrefix }}jenkins-rwo
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 provisioner: pd.csi.storage.gke.io
@@ -25,11 +25,25 @@ reclaimPolicy: Delete
 parameters:
   type: pd-balanced
 ---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.config.namespacePrefix }}sdv-mirror-zonal-rwx
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+provisioner: filestore.csi.storage.gke.io
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+parameters:
+  tier: zonal
+  network: sdv-network
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jenkins-home-volume
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -38,32 +52,32 @@ spec:
   resources:
     requests:
       storage: 32Gi
-  storageClassName: jenkins-rwo
+  storageClassName: {{ .Values.config.namespacePrefix }}jenkins-rwo
   volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: jenkins-sa
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
-    iam.gke.io/gcp-service-account: gke-jenkins-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: gke-{{ .Values.config.namespacePrefix }}jenkins-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: terraform-workloads-sa
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
-    iam.gke.io/gcp-service-account: gke-terraform-workloads-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: gke-{{ .Values.config.namespacePrefix }}tf-wl-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com
     argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: jenkins-writer-role
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 rules:
@@ -87,7 +101,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: terraform-workloads-writer-cluster-role
+  name: {{ .Values.config.namespacePrefix }}terraform-workloads-writer-cluster-role
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 rules:
@@ -124,7 +138,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: jenkins-writer-rolebinding
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 subjects:
@@ -138,24 +152,24 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: terraform-workloads-writer-cluster-rolebinding
-  namespace: jenkins
+  name: {{ .Values.config.namespacePrefix }}terraform-workloads-writer-cluster-rolebinding
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 subjects:
   - kind: ServiceAccount
     name: terraform-workloads-sa
-    namespace: jenkins
+    namespace: {{ .Values.config.namespacePrefix }}jenkins
 roleRef:
   kind: ClusterRole
-  name: terraform-workloads-writer-cluster-role
+  name: {{ .Values.config.namespacePrefix }}terraform-workloads-writer-cluster-role
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: jenkins-initial-creds
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 stringData:
@@ -164,29 +178,29 @@ stringData:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: jenkins-github-creds
-  namespace: jenkins
+  name: jenkins-git-creds
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   labels:
-    {{- if eq .Values.github.authMethod "app" }}
+    {{- if eq .Values.git.authMethod "app" }}
     "jenkins.io/credentials-type": "gitHubApp"
     {{- else }}
     "jenkins.io/credentials-type": "usernamePassword"
     {{- end }}
   annotations:
-    "jenkins.io/credentials-description": "GitHub"
+    "jenkins.io/credentials-description": "Git"
     argocd.argoproj.io/sync-wave: "1"
 type: Opaque
 stringData:
-  id: "github-creds"
-  {{- if eq .Values.github.authMethod "pat" }}
-  username: {{ .Values.github.username }}
+  id: "git-creds"
+  {{- if eq .Values.git.authMethod "pat" }}
+  username: {{ .Values.git.username }}
   {{- end }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: jenkins-gce-creds
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   labels:
     "jenkins.io/credentials-type": "googleRobotPrivateKey"
   annotations:
@@ -201,7 +215,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: jenkins-cuttlefish-vm-ssh-private-key
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   labels:
     jenkins.io/credentials-type: "basicSSHUserPrivateKey"
   annotations:
@@ -215,7 +229,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
 metadata:
   name: jenkins-secret-store
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -233,7 +247,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: jenkins-initial-secret
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -247,14 +261,14 @@ spec:
   data:
     - secretKey: jenkins-admin-password
       remoteRef:
-        key: jenkins-admin-password-b64
+        key: {{ .Values.config.namespacePrefix }}jenkins-admin-password-b64
         decodingStrategy: Base64
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: jenkins-github-creds-secret
-  namespace: jenkins
+  name: jenkins-git-creds-secret
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -263,22 +277,22 @@ spec:
     kind: SecretStore
     name: jenkins-secret-store
   target:
-    name: jenkins-github-creds
+    name: jenkins-git-creds
     creationPolicy: Merge
   data:
-    {{- if eq .Values.github.authMethod "app" }}
+    {{- if eq .Values.git.authMethod "app" }}
     - secretKey: appID
       remoteRef:
-        key: github-app-id-b64
+        key: {{ .Values.config.namespacePrefix }}github-app-id-b64
         decodingStrategy: Base64
     - secretKey: privateKey
       remoteRef:
-        key: github-app-private-key-pkcs8-b64
+        key: {{ .Values.config.namespacePrefix }}github-app-private-key-pkcs8-b64
         decodingStrategy: Base64
     {{- else }}
     - secretKey: password
       remoteRef:
-        key: github-pat-b64
+        key: {{ .Values.config.namespacePrefix }}git-pat-b64
         decodingStrategy: Base64
     {{- end }}
 ---
@@ -286,7 +300,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: jenkins-gce-creds-secret
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -306,7 +320,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: jenkins-cuttlefish-vm-ssh-private-key-secret
-  namespace: jenkins
+  namespace: {{ .Values.config.namespacePrefix }}jenkins
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -320,39 +334,5 @@ spec:
   data:
     - secretKey: privateKey
       remoteRef:
-        key: jenkins-cuttlefish-ssh-key-b64
+        key: {{ .Values.config.namespacePrefix }}jenkins-cuttlefish-ssh-key-b64
         decodingStrategy: Base64
----
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
-metadata:
-  name: jenkins-abfs-license-b64
-  namespace: jenkins
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  refreshInterval: 10s
-  secretStoreRef:
-    kind: SecretStore
-    name: jenkins-secret-store
-  target:
-    name: jenkins-abfs-license-b64
-    creationPolicy: Merge
-  data:
-    - secretKey: text
-      remoteRef:
-        key: jenkins-abfs-license-b64
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: jenkins-abfs-license-b64
-  namespace: jenkins
-  labels:
-    "jenkins.io/credentials-type": "secretText"
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    "jenkins.io/credentials-description": "ABFS License"
-type: Opaque
-stringData:
-  id: "abfs-license"

@@ -217,9 +217,9 @@ To ensure a smooth transition it is advisable users update their build image and
 
 Update networking to support subnet and NAT for us-central1 in order to gain access to ARM64 metal instances.
 
-ARM64 enablement is controlled through a GitHub environment variable:
+ARM64 enablement is controlled via infrastructure configuration using Terraform variables ( for e.g, `terraform.tfvars`)
 
-> FEATURES_BARE_METAL_ARM64
+> enable_arm64 = true
 
 If flag is **true** → ARM64 networking is created  
 If **false** or **missing** → ARM64 networking will be disabled, had it been enabled previously.

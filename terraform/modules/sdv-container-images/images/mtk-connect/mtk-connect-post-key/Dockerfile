@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.9-slim
+FROM --platform=linux/amd64 python:3.9-slim-bookworm
+
+# Add security repository and upgrade all packages to fix CVEs
+RUN echo "deb http://security.debian.org/debian-security bookworm-security main" > /etc/apt/sources.list.d/security.list && \
+    apt update -y && apt upgrade -y && \
+    apt clean && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
 RUN useradd -m appuser
@@ -20,8 +25,8 @@ USER appuser
 
 WORKDIR /app
 
-COPY requirements.txt /app/
+COPY --chown=appuser:appuser requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY configure-key.py /app/
+COPY --chown=appuser:appuser configure-key.py /app/
 ENTRYPOINT ["python", "/app/configure-key.py"]

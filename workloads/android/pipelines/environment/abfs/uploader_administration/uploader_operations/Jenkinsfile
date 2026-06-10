@@ -42,13 +42,22 @@ pipeline {
       agent { kubernetes { yaml kubernetesPodTemplate } }
       stages {
         stage ('Uploader Action') {
+          when {
+            anyOf {
+              allOf {
+                expression { env.ABFS_TERRAFORM_ACTION == 'APPLY' }
+                expression { env.ABFS_LICENSE_B64 }
+              }
+              expression { env.ABFS_TERRAFORM_ACTION != 'APPLY' }
+            }
+          }
           steps {
             container(name: 'abfs-uploader-builder') {
               catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                withCredentials([string(credentialsId: 'jenkins-abfs-license-b64', variable: "JENKINS_ABFS_LICENSE_B64")]) {
-                  script {
-                    currentBuild.description = "Action: ${ABFS_TERRAFORM_ACTION}" + "<br/>" + "$BUILD_USER"
-                  }
+                script {
+                  currentBuild.description = "Action: ${ABFS_TERRAFORM_ACTION}" + "<br/>" + "$BUILD_USER"
+                }
+                maskPasswords(varPasswordPairs: [[var: 'ABFS_LICENSE_B64']], varMaskRegexes: []) {
                   sh '''
                     cd ./workloads/android/pipelines/environment/abfs/uploader_administration/uploader_operations/
                     ABFS_TERRAFORM_ACTION="${ABFS_TERRAFORM_ACTION}" \
@@ -59,9 +68,9 @@ pipeline {
                     UPLOADER_GIT_BRANCH="${UPLOADER_GIT_BRANCH}" \
                     UPLOADER_MANIFEST_FILE="${UPLOADER_MANIFEST_FILE}" \
                     ABFS_COS_IMAGE_REF="${ABFS_COS_IMAGE_REF}" \
-                    ABFS_LICENSE_B64=${ABFS_LICENSE_B64:-$JENKINS_ABFS_LICENSE_B64} \
+                    ABFS_LICENSE_B64=${ABFS_LICENSE_B64} \
                     ./abfs_uploader_run.sh
-                  '''
+                    '''
                 }
               }
             }

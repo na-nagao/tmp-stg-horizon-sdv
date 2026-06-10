@@ -59,9 +59,9 @@ pipelineJob('Cloud-Workstations/Config-Admin-Operations/Create New Configuration
       sectionHeaderStyle("${HEADER_STYLE}")
       separatorStyle("${SEPARATOR_STYLE}")
     }
-    stringParam('WS_REPLICA_ZONES', 'europe-west1-b,europe-west1-d', '''
+    stringParam('WS_REPLICA_ZONES', '', '''
       Optional: Comma-separated list of two zones in the ${CLOUD_REGION} region.<br>
-      Default: <code>${CLOUD_REGION}-b, ${CLOUD_REGION}-d</code><br>
+      Default: First two zones from <code>${CLOUD_REGION}</code><br>
       Note:
       <ul>
         <li>EXACTLY TWO zones required, separated by a comma.</li>
@@ -197,10 +197,10 @@ pipelineJob('Cloud-Workstations/Config-Admin-Operations/Create New Configuration
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/cloud-workstations/pipelines/config-admin-operations/create-config/Jenkinsfile')

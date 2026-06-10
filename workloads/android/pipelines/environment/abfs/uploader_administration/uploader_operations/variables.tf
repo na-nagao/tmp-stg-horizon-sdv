@@ -26,6 +26,11 @@ variable "zone" {
   description = "Zone for ABFS servers"
 }
 
+variable "sdv_network" {
+  description = "Name of the network"
+  type        = string
+}
+
 variable "abfs_gerrit_uploader_count" {
   type        = number
   description = "The number of gerrit uploader instances to create"

@@ -16,7 +16,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   name: grafana-route
-  namespace: monitoring
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
   labels:
     gateway: gke-gateway
   annotations:
@@ -25,7 +25,7 @@ spec:
   parentRefs:
     - kind: Gateway
       name: gke-gateway
-      namespace: gke-gateway
+      namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
 
 # add by n.nagao
@@ -54,14 +54,14 @@ spec:
               type: ReplacePrefixMatch
               replacePrefixMatch: /grafana
       backendRefs:
-        - name: grafana
+        - name: {{ .Values.config.namespacePrefix }}grafana
           port: 80
 ---
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: grafana-healthcheck
-  namespace: monitoring
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
   annotations:
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -80,4 +80,28 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: grafana
+    name: {{ .Values.config.namespacePrefix }}grafana
+---
+# Allow Grafana ingress from Gateway
+{{- if .Values.config.enableNetworkPolicies }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-ingress-from-gateway
+  namespace: {{ .Values.config.namespacePrefix }}monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 80     # HTTP traffic
+    - protocol: TCP
+      port: 3000   # Direct UI / health check
+
+{{- end }}

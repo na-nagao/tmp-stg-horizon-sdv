@@ -20,7 +20,7 @@ pipelineJob('Android/Environment/ABFS/Server Administration/Server Operations') 
     <h4 style="margin-bottom: 10px;">Prerequisites</h4>
       <p>Before creating the ABFS Server VM instance, the following dependencies must be met:</p>
       <ul><li><b>Service Account Creation</b>: The abfs-server service account must be created in the GCP project.</li>
-          <li><b>ABFS License Deployment</b>: The ABFS license provided by Google must be deployed on the platform using GitHub environment secrets and Terraform workflow.</li>
+          <li><b>ABFS License Deployment</b>: The ABFS license provided by Google must be deployed on the platform via Jenkins.</li>
           <li><b>Docker Infra Image Template Job</b>:The Docker Infra Image Template job must be run, and the Docker image must be available in the registry.</li>
       </ul>
     <p>By meeting these prerequisites, you can ensure a successful creation of the ABFS Server VM instance, which is essential for the ABFS uploader and build job.</p>
@@ -34,6 +34,12 @@ pipelineJob('Android/Environment/ABFS/Server Administration/Server Operations') 
       description('''<p>The action to perform to create, destroy, stop, start, restart server.<br/>
         Use `APPLY` to create the server or update based on any changes made below.</p>''')
     }
+
+    nonStoredPassword {
+      name('ABFS_LICENSE_B64')
+      description('''<p><b>Mandatory:</b> Base64-encoded ABFS license file (required for <code>APPLY</code> actions).</p>''')
+    }
+
     stringParam {
       name('SERVER_MACHINE_TYPE')
       defaultValue('n2-highmem-64')
@@ -70,23 +76,16 @@ pipelineJob('Android/Environment/ABFS/Server Administration/Server Operations') 
     }
 
     stringParam {
-      name('TERRAFORM_GITHUB_URL')
+      name('TERRAFORM_GIT_URL')
       defaultValue('https://github.com/terraform-google-modules/terraform-google-abfs.git')
-      description('''<p>ABFS Terraform GitHub repo.</p>''')
+      description('''<p>ABFS Terraform Git repo.</p>''')
       trim(true)
     }
 
     stringParam {
-      name('TERRAFORM_GITHUB_VERSION')
+      name('TERRAFORM_GIT_VERSION')
       defaultValue('961f5aa3c3be87a242597cbd4bc08821f28a7085')
-      description('''<p>ABFS Terraform GitHub repo sha1 version.</p>''')
-      trim(true)
-    }
-
-    stringParam {
-      name('ABFS_LICENSE_B64')
-      defaultValue('')
-      description('''<p>Optional: Base64 encoded version of the ABFS license file.</p>''')
+      description('''<p>ABFS Terraform Git repo sha1 version.</p>''')
       trim(true)
     }
 
@@ -118,10 +117,10 @@ pipelineJob('Android/Environment/ABFS/Server Administration/Server Operations') 
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/android/pipelines/environment/abfs/server_administration/server_operations/Jenkinsfile')

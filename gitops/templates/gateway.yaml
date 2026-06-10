@@ -16,7 +16,7 @@ kind: Gateway
 apiVersion: gateway.networking.k8s.io/v1beta1
 metadata:
   name: gke-gateway
-  namespace: gke-gateway
+  namespace: {{ .Values.config.namespacePrefix }}gke-gateway
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     networking.gke.io/certmap: horizon-sdv-map
@@ -47,7 +47,7 @@ apiVersion: networking.gke.io/v1
 kind: GCPGatewayPolicy
 metadata:
   name: gke-ssl-policy
-  namespace: gke-gateway
+  namespace: {{ .Values.config.namespacePrefix }}gke-gateway
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:

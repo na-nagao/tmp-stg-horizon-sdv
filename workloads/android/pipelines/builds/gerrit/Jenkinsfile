@@ -150,9 +150,9 @@ pipeline {
           volumeMounts:
             - mountPath: /aaos-cache
               name: aaos-cache
-            - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
               readOnly: true
-              name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         volumes:
           - name: aaos-cache
             ephemeral:
@@ -164,9 +164,9 @@ pipeline {
                       storage: 1000Gi
                   accessModes:
                     - ReadWriteOnce
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
             persistentVolumeClaim:
-              claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         nodeSelector:
           workloadLabel: android
     """.stripIndent()
@@ -246,7 +246,7 @@ pipeline {
                     export GERRIT_PASSWORD="${GERRIT_PASSWORD}"
                     export REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}"
                     export USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}"
-                    export MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
+                    export MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
                     if ! ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_build.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_avd_sdk.sh || \
@@ -294,7 +294,7 @@ pipeline {
                     export GERRIT_PASSWORD="${GERRIT_PASSWORD}"
                     export REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}"
                     export USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}"
-                    export MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
+                    export MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
                     if ! ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_build.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_avd_sdk.sh || \
@@ -341,7 +341,7 @@ pipeline {
                     export GERRIT_PASSWORD="${GERRIT_PASSWORD}"
                     export REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}"
                     export USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}"
-                    export MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
+                    export MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
                     if ! ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_build.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_storage.sh; then
@@ -387,7 +387,7 @@ pipeline {
                     export GERRIT_PASSWORD="${GERRIT_PASSWORD}"
                     export REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}"
                     export USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}"
-                    export MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
+                    export MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
                     if ! ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_build.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_storage.sh; then
@@ -443,7 +443,7 @@ pipeline {
                     export GERRIT_PASSWORD="${GERRIT_PASSWORD}"
                     export REPO_SYNC_JOBS="${GERRIT_REPO_SYNC_JOBS}"
                     export USE_LOCAL_AOSP_MIRROR="${USE_LOCAL_AOSP_MIRROR}"
-                    export MIRROR_DIR_FULL_PATH="${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
+                    export MIRROR_DIR_FULL_PATH="${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}/${MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME}/${AOSP_MIRROR_DIR_NAME}"
                     if ! ./workloads/android/pipelines/builds/aaos_builder/aaos_initialise.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_build.sh || \
                        ! ./workloads/android/pipelines/builds/aaos_builder/aaos_storage.sh; then

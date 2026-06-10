@@ -17,7 +17,7 @@ pipelineJob('Cloud-Workstations/Workstation-Images/Horizon Android Studio') {
     <br/><h3 style="margin-bottom: 10px;">Workstation Image Builder</h3>
     <p>This job builds the container image for the Android Studio IDE for use in Cloud Workstations.</p>
     <h4 style="margin-bottom: 10px;">Image Configuration</h4>
-    <p>The Dockerfile uses a minimal Google Cloud Workstation base image and installs essential packages and tools including Android Command Line Tools and SDKs, GNOME desktop environment (with terminal), noVNC and TigerVNC for browser-based remote desktop access, the standard Android emulator, Google Chrome browser, Gemini-CLI and all necessary system services for a complete cloud development experience.</p>
+    <p>The Dockerfile uses a minimal Google Cloud Workstation base image and installs essential packages and tools including Android Command Line Tools and SDKs, GNOME desktop environment (with terminal), noVNC and TigerVNC for browser-based remote desktop access, the standard Android emulator, Google Chrome browser, Gemini-CLI, Gemini Code Assist in IDE, gemini-mcp-agent (MCP config helper) and all necessary system services for a complete cloud development experience.</p>
     <h4 style="margin-bottom: 10px;">Pushing Changes to the Registry</h4>
     <p>To push changes to the registry, set the parameter <code>NO_PUSH=false</code>.</p>
     <p>The image will be pushed to <code>${CLOUD_REGION}-docker.pkg.dev/${CLOUD_PROJECT}/${CLOUD_WS_HORIZON_ANDROID_STUDIO_IMAGE_NAME}</code></p>
@@ -79,10 +79,10 @@ pipelineJob('Cloud-Workstations/Workstation-Images/Horizon Android Studio') {
       scm {
         git {
           remote {
-            url("${HORIZON_GITHUB_URL}")
-            credentials('jenkins-github-creds')
+            url("${HORIZON_GIT_URL}")
+            credentials('jenkins-git-creds')
           }
-          branch("*/${HORIZON_GITHUB_BRANCH}")
+          branch("*/${HORIZON_GIT_BRANCH}")
         }
       }
       scriptPath('workloads/cloud-workstations/pipelines/workstation-images/horizon-android-studio/Jenkinsfile')

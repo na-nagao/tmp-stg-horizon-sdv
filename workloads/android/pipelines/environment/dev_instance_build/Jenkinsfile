@@ -141,9 +141,9 @@ pipeline {
           volumeMounts:
             - mountPath: /aaos-cache
               name: aaos-cache
-            - mountPath: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
+            - mountPath: ${MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER}
               readOnly: true
-              name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         volumes:
           - name: aaos-cache
             ephemeral:
@@ -155,9 +155,9 @@ pipeline {
                       storage: ${STORAGE_SIZE}
                   accessModes:
                     - ReadWriteOnce
-          - name: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+          - name: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
             persistentVolumeClaim:
-              claimName: ${AOSP_MIRROR_PRESET_FILESTORE_PVC_NAME}
+              claimName: ${MIRROR_PRESET_FILESTORE_PVC_NAME}
         nodeSelector:
           workloadLabel: android
     """.stripIndent()

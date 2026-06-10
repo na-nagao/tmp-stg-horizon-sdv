@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22.13.0
-RUN apt update -y && apt install vim curl jq -y
+FROM --platform=linux/amd64 node:22-alpine
+RUN apk update && apk upgrade && apk add --no-cache bash vim curl jq openssl
 WORKDIR /home/node
-ADD package.json ./
-ADD keycloak.mjs ./
-ADD configure.sh ./
+ADD --chown=node:node package.json ./
+ADD --chown=node:node keycloak.mjs ./
+ADD --chown=node:node configure.sh ./
 RUN chmod +x configure.sh
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 RUN mv ./kubectl /usr/local/bin && chmod +x /usr/local/bin/kubectl

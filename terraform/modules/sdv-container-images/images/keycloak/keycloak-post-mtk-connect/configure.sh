@@ -23,14 +23,14 @@ CACERT=${SERVICEACCOUNT}/ca.crt
 npm install
 node keycloak.mjs
 
-OLD_KEY=$(kubectl get secret -n mtk-connect mtk-connect-keycloak -o jsonpath='{.data.privateKey}' | base64 -d)
-OLD_CERT=$(kubectl get secret -n mtk-connect mtk-connect-keycloak -o jsonpath='{.data.idpCert}' | base64 -d)
+OLD_KEY=$(kubectl get secret -n ${NAMESPACE_PREFIX}mtk-connect mtk-connect-keycloak -o jsonpath='{.data.privateKey}' | base64 -d)
+OLD_CERT=$(kubectl get secret -n ${NAMESPACE_PREFIX}mtk-connect mtk-connect-keycloak -o jsonpath='{.data.idpCert}' | base64 -d)
 
 if [ "${OLD_KEY}" != "$(<privateKey.pem)" ] || [ "${OLD_CERT}" != "$(<idpCert.pem)" ]; then
   echo "Restarting MTK Connect ..."
-  kubectl -n mtk-connect delete secret mtk-connect-keycloak
-  kubectl -n mtk-connect create secret generic mtk-connect-keycloak --from-file=privateKey=./privateKey.pem --from-file=idpCert=./idpCert.pem
-  kubectl -n mtk-connect delete pod -l app=mtk-connect,type=deploy
+  kubectl -n "${NAMESPACE_PREFIX}mtk-connect" delete secret mtk-connect-keycloak
+  kubectl -n "${NAMESPACE_PREFIX}mtk-connect" create secret generic mtk-connect-keycloak --from-file=privateKey=./privateKey.pem --from-file=idpCert=./idpCert.pem
+  kubectl -n "${NAMESPACE_PREFIX}mtk-connect" delete pod -l app=mtk-connect,type=deploy
 else
   echo "mtk-connect-keycloak secret unchanged => no need to restart MTK Connect"
 fi

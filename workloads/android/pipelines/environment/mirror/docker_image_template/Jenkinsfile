@@ -29,14 +29,14 @@ pipeline {
   environment {
     // Update latest tag.
     REGISTRY="${env.CLOUD_REGION}-docker.pkg.dev"
-    DESTINATION="${REGISTRY}/${env.CLOUD_PROJECT}/${env.AOSP_MIRROR_WORKLOADS_ENV_IMAGE_NAME}"
+    DESTINATION="${REGISTRY}/${env.CLOUD_PROJECT}/${env.MIRROR_WORKLOADS_ENV_IMAGE_NAME}"
     PUSH="${NO_PUSH == "true" ? "false" : "true"}"
 
     def kubernetesPodTemplate = """
       apiVersion: v1
       kind: Pod
       spec:
-        hostname: jenkins-aosp-mirror-env-pod
+        hostname: jenkins-mirror-env-pod
         serviceAccountName: ${TERRAFORM_WORKLOADS_SERVICE_ACCOUNT}
         containers:
         - name: buildkit
@@ -46,9 +46,9 @@ pipeline {
             privileged: true
           resources:
             limits:
-              memory: 8Gi
+              memory: 4Gi
             requests:
-              memory: 8Gi
+              memory: 4Gi
       """.stripIndent()
   }
 

@@ -286,11 +286,11 @@ These are as follows:
 -   `HORIZON_DOMAIN`
     - The URL domain which is required by pipeline jobs to derive URL for tools and GCP.
 
--   `HORIZON_GITHUB_URL`
-    - The URL to the Horizon SDV GitHub repository.
+-   `HORIZON_GIT_URL`
+    - The URL to the Horizon SDV Git repository.
 
--   `HORIZON_GITHUB_BRANCH`
-    - The branch name the job will be configured for from `HORIZON_GITHUB_URL`.
+-   `HORIZON_GIT_BRANCH`
+    - The branch name the job will be configured for from `HORIZON_GIT_URL`.
 
 -   `JENKINS_AAOS_BUILD_CACHE_STORAGE_PREFIX`
     - This identifies the Persistent Volume Claim (PVC) prefix that is used to provision persistent storage for build cache, ensuring efficient reuse of cached resources across builds.  The default is [`pd-balanced`](https://cloud.google.com/compute/docs/disks/performance), which strikes a balance between optimal performance and cost-effectiveness.
@@ -298,11 +298,11 @@ These are as follows:
 -   `JENKINS_SERVICE_ACCOUNT`
     - Service account to use for pipelines. Required to ensure correct roles and permissions for GCP resources.
 
--    `AOSP_MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER`
+-    `MIRROR_PRESET_FILESTORE_PVC_MOUNT_PATH_IN_CONTAINER`
 
--    `AOSP_MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME`
+-    `MIRROR_PRESET_MIRROR_ROOT_SUBDIR_NAME`
 
--    `AOSP_MIRROR_DIR_NAME`
+-    `MIRROR_DIR_NAME`
 
 ## KNOWN ISSUES <a name="known-issues"></a>
 
