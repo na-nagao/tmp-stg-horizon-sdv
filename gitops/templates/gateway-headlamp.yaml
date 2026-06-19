@@ -39,7 +39,7 @@ spec:
 
 
   hostnames:
-    -  {{ .Values.config.domain }}
+    #-  {{ .Values.config.domain }}
     - cdc.horizon-sdv-stg # add by nagao
   rules:
     - matches:
@@ -78,7 +78,8 @@ spec:
       httpHealthCheck:
         portSpecification: USE_SERVING_PORT
         requestPath: /ping
-        host: {{ .Values.config.domain }}
+        #host: {{ .Values.config.domain }}
+        host: cdc.horizon-sdv-stg
   targetRef:
     group: ""
     kind: Service

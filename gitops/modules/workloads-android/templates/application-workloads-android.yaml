@@ -52,7 +52,8 @@ spec:
             cloudProject: {{ .Values.config.projectID | quote }}
             cloudRegion: {{ .Values.config.region | quote }}
             cloudZone: {{ .Values.config.zone | quote }}
-            horizonDomain: {{ .Values.config.domain | quote }}
+            #horizonDomain: {{ .Values.config.domain | quote }}
+            horizonDomain: cdc.horizon-sdv-stg
             pipelineRepoUrl: {{ .Values.config.workloads.android.url | quote }}
             pipelineRepoRevision: {{ .Values.config.workloads.android.branch | quote }}
             pipelineRepoSecret: {{ if or (eq .Values.config.scm.authMethod "userpass") (eq .Values.config.scm.authMethod "app") }}{{ "workflow-pipeline-git-creds" | quote }}{{ else }}{{ "" | quote }}{{ end }}

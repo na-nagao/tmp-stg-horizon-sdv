@@ -29,7 +29,8 @@ data:
   CLOUD_PROJECT: {{ .Values.config.projectID | quote }}
   CLOUD_REGION: {{ .Values.config.region | quote }}
   CLOUD_ZONE: {{ .Values.config.zone | quote }}
-  HORIZON_DOMAIN: {{ .Values.config.domain | quote }}
+  #HORIZON_DOMAIN: {{ .Values.config.domain | quote }}
+  HORIZON_DOMAIN: cdc.horizon-sdv-stg
 ---
 apiVersion: v1
 kind: ServiceAccount

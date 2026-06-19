@@ -40,7 +40,7 @@ spec:
       filters:
         - type: URLRewrite
           urlRewrite:
-            hostname: {{ .Values.config.domain }}
+            #hostname: {{ .Values.config.domain }}
             hostname: cdc.horizon-sdv-stg
             path:
               type: ReplacePrefixMatch

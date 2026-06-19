@@ -39,7 +39,8 @@ spec:
           url: {{ .Values.spec.source.repoURL | quote }}
           revision: {{ .Values.spec.source.targetRevision | quote }}
         config:
-          domain: {{ .Values.config.domain }}
+          #domain: {{ .Values.config.domain }}
+          domain: cdc.horizon-sdv-stg
           projectID: {{ .Values.config.projectID }}
           region: {{ .Values.config.region }}
           zone: {{ .Values.config.zone }}

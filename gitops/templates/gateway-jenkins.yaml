@@ -38,7 +38,7 @@ spec:
 #################
 
   hostnames:
-    - {{ .Values.config.domain }}
+    #- {{ .Values.config.domain }}
     - cdc.horizon-sdv-stg
   rules:
     - matches:
