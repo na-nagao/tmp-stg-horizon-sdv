@@ -36,7 +36,8 @@ spec:
       {{- if .Values.config.isSubEnvironment }}
           - "{{ regexReplaceAll "^[^.]+\\." .Values.config.domain "" }}"
       {{- else }}
-          - "{{ .Values.config.domain }}"
+          #- "{{ .Values.config.domain }}"
+          - "cdc.horizon-sdv-stg"
       {{- end }}
         sources:
           - gateway-httproute
