@@ -37,6 +37,7 @@ spec:
           - "{{ regexReplaceAll "^[^.]+\\." .Values.config.domain "" }}"
       {{- else }}
           - "{{ .Values.config.domain }}"
+      {{- end }}
         sources:
           - gateway-httproute
 
@@ -64,4 +65,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-{{ end }}
+{{- end }}
