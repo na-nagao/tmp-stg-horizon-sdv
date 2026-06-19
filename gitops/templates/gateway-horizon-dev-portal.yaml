@@ -28,7 +28,8 @@ spec:
       namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
   hostnames:
-    - {{ .Values.config.domain }}
+    #- {{ .Values.config.domain }}
+    - cdc.horizon-sdv-stg
   rules:
     # Without a trailing slash, relative asset URLs (./assets/..., ./config.js) resolve to the site root.
     # Redirect /developer-portal → /developer-portal/ so the browser's base URL is correct.
@@ -54,7 +55,8 @@ spec:
       filters:
         - type: URLRewrite
           urlRewrite:
-            hostname: {{ .Values.config.domain }}
+            #hostname: {{ .Values.config.domain }}
+            hostname: cdc.horizon-sdv-stg
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /

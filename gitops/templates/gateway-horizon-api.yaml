@@ -30,7 +30,8 @@ spec:
       namespace: {{ .Values.config.namespacePrefix }}gke-gateway
       sectionName: https
   hostnames:
-    - {{ .Values.config.domain }}
+    #- {{ .Values.config.domain }}
+    - cdc.horizon-sdv-stg
   rules:
     - matches:
         - path:
@@ -40,6 +41,7 @@ spec:
         - type: URLRewrite
           urlRewrite:
             hostname: {{ .Values.config.domain }}
+            hostname: cdc.horizon-sdv-stg
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /

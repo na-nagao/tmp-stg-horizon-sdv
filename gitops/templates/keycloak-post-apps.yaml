@@ -412,7 +412,8 @@ spec:
             - name: PLATFORM_URL
               value: http://{{ .Values.config.namespacePrefix }}keycloak-keycloakx-http:8080
             - name: DOMAIN
-              value: https://{{ .Values.config.domain }}
+              #value: https://{{ .Values.config.domain }} #change by nagao
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
@@ -447,7 +448,8 @@ spec:
             - name: PLATFORM_URL
               value: http://{{ .Values.config.namespacePrefix }}keycloak-keycloakx-http:8080
             - name: DOMAIN
-              value: https://{{ .Values.config.domain }}
+              #value: https://{{ .Values.config.domain }}
+              value: https://cdc.horizon-sdv-stg
             - name: KEYCLOAK_USERNAME
               value: "admin"
             - name: KEYCLOAK_PASSWORD
