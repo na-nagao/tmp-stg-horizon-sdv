@@ -31,7 +31,7 @@ spec:
         provider: google
         google:
           project: "{{ .Values.config.projectID }}"
-        
+
         domainFilters:
       {{- if .Values.config.isSubEnvironment }}
           - "{{ regexReplaceAll "^[^.]+\\." .Values.config.domain "" }}"
@@ -39,13 +39,13 @@ spec:
           - "{{ .Values.config.domain }}"
         sources:
           - gateway-httproute
-        
+
         serviceAccount:
           create: true
           name: external-dns-sa
           annotations:
             iam.gke.io/gcp-service-account: "{{ .Values.config.namespacePrefix }}external-dns-sa@{{ .Values.config.projectID }}.iam.gserviceaccount.com"
-        
+
         policy: sync
 
         # Apex TXT prefix so ExternalDNS can own and update the apex A record
@@ -64,3 +64,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+{{ end }}
