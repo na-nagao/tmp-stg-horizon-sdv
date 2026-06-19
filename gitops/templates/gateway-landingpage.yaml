@@ -33,7 +33,7 @@ spec:
     # 内部向け（正解）：Internal Gateway の HTTP リスナー
     - kind: Gateway
       name: sdv-internal-gateway
-      namespace: gke-gateway     # ✅ 修正点
+      namespace: {{ .Values.config.namespacePrefix }}gke-gateway     # ✅ 修正点
       sectionName: https          # ✅ 追加
 
 #############################
